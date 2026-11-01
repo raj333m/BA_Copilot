@@ -1,0 +1,11 @@
+Mtg notes - 14 Oct - Collections / Credit Reporting / DW team
+
+- collections ops raised: customers on a payment arrangement are still showing as "in arrears" on the monthly credit reference agency (CRA) file. complaints going up, 23 last month. Consumer Duty risk flagged by Compliance.
+- arrangement data sits in the collections system (CollectPro). DW does not currently take the arrangement table, only arrears balance + days past due.
+- CRA file built monthly from DW (credit reporting mart). Status code logic is in the DW ETL.
+- need: new arrangement indicator + arrangement start/end date in DW, feed into CRA status logic -> arrangement accounts reported with the arrangement flag, not just arrears status.
+- if arrangement broken (2 missed payments) should revert to arrears reporting.
+- want DQ checks before file goes out - counts recon DW vs file, no nulls in mandatory fields, flag mismatches.
+- ops want an exceptions report / dashboard each month before submission. sign-off by credit reporting lead.
+- historic correction? TBC - compliance to confirm if past 6 months need amendments.
+- target: Q1 next year. products in scope: personal loans + credit cards. mortgages out of scope for now.
