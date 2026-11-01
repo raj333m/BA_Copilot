@@ -24,3 +24,11 @@ textColor = "#e8eef7"
 primaryColor = "#ffdb00"
 linkColor = "#ffdb00"
 borderColor = "#2a3a58"
+
+[server]
+# Skip Streamlit's first-run email prompt; the launcher opens the browser itself.
+headless = true
+port = 8501
+
+[browser]
+gatherUsageStats = false

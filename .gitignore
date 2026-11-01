@@ -9,3 +9,4 @@ projects/*.json
 *.docx
 *.pdf
 .DS_Store
+.venv/
