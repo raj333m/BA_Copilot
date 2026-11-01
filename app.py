@@ -15,6 +15,7 @@ from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 
+from core.samples import SAMPLES
 from core.demo_content import DEMO_DIAGRAMS, DEMO_SECTIONS, SAMPLE_CONTEXT, SAMPLE_INPUT
 from core.diagrams import preview_html, render_png
 from core.exporters import export_docx, export_pdf
@@ -31,12 +32,39 @@ PROJECTS_DIR.mkdir(exist_ok=True)
 st.set_page_config(page_title="BA Copilot", page_icon="📘", layout="wide")
 st.markdown("""
 <style>
-  .block-container {padding-top: 1.6rem; max-width: 1400px;}
-  .badge {display:inline-block;padding:2px 10px;border-radius:999px;font-size:0.8rem;font-weight:600;}
-  .b-none {background:#f1f5f9;color:#475569;} .b-draft {background:#fef3c7;color:#92400e;}
-  .b-saved {background:#dbeafe;color:#1e40af;} .b-ok {background:#dcfce7;color:#166534;}
+  .block-container {padding-top: 3.2rem; max-width: 1360px;}
+  /* hero banner: navy with a yellow glow, serif headline */
+  .hero {background: radial-gradient(circle at 92% 0%, #ffdb0033, transparent 45%), #0a1630; color: #fff;
+         border-radius: 4px; padding: 26px 30px 24px; margin: 0 0 18px;}
+  .hero .eyebrow {color: #cad9ec; letter-spacing: 2px; font-size: 10.5px; font-weight: 700; text-transform: uppercase;}
+  .hero h1 {font-family: Georgia, 'Times New Roman', serif !important; font-weight: 400 !important; font-size: 34px !important;
+            letter-spacing: -0.8px; line-height: 1.1; margin: 10px 0 8px !important; padding: 0 !important; color: #fff !important;}
+  .hero h1 em {font-style: normal; color: #ffdb00;}
+  .hero p {color: #cad9ec; margin: 0; max-width: 820px; font-size: 15px;}
+  /* primary actions: signal yellow on navy text */
+  button[kind="primary"], [data-testid="stBaseButton-primary"] {background: #ffdb00 !important; color: #09152d !important;
+            border: 1px solid #ffdb00 !important; font-weight: 650 !important;}
+  button[kind="primary"]:hover, [data-testid="stBaseButton-primary"]:hover {background: #ffe743 !important; border-color: #ffe743 !important;}
+  button[kind="primary"] p, [data-testid="stBaseButton-primary"] p {color: #09152d !important;}
+  /* info panels: left accent rule like the site's demo panel */
+  [data-testid="stAlert"] {border-left: 3px solid #006da3; border-radius: 3px;}
+  /* sidebar brand */
+  .brand {display: flex; gap: 10px; align-items: center; margin: 4px 0 2px;}
+  .brand .sym {width: 34px; height: 34px; border: 2px solid #ffdb00; color: #ffdb00; border-radius: 50%;
+               display: grid; place-items: center; font-weight: 800; font-size: 13px;}
+  .brand b {font-size: 18px; color: #fff;} .brand b span {color: #ffdb00;}
+  .brand-sub {color: #9fb1c8; font-size: 12.5px; margin: 0 0 6px;}
+  /* status pills */
+  .badge {display:inline-block;padding:2px 10px;border-radius:3px;font-size:0.78rem;font-weight:700;letter-spacing:.02em;}
+  .b-none {background:#edf0f4;color:#606b80;} .b-draft {background:#fff7d6;color:#7a5a00;}
+  .b-saved {background:#edf4f8;color:#006da3;} .b-ok {background:#eaf5f3;color:#006b65;}
   textarea {font-family: ui-monospace, Consolas, monospace !important; font-size: 0.86rem !important;}
 </style>""", unsafe_allow_html=True)
+
+
+def hero(step: str, title: str, text: str):
+    st.markdown(f"<div class='hero'><div class='eyebrow'>{step}</div><h1>{title}</h1><p>{text}</p></div>",
+                unsafe_allow_html=True)
 
 
 # =====================================================================  state
@@ -261,6 +289,16 @@ def cb_transcribe():
     flash("success", "Dictation added to your notes - review and edit it before submitting.")
 
 
+def cb_load_example():
+    x = next(e for e in SAMPLES if e["key"] == st.session_state.get("example_pick", SAMPLES[0]["key"]))
+    P["meta"].update({**x["meta"], "author": P["meta"].get("author") or ""})
+    P["raw_input"], P["file_text"], P["file_names"] = x["notes"], "", []
+    for k in list(st.session_state.keys()):
+        if k.startswith("m_") or k == "raw_input":
+            del st.session_state[k]
+    flash("success", f"Loaded the example '{x['label']}'. Click Submit to AI to draft the document.")
+
+
 def cb_new_project():
     st.session_state.project = new_project()
     reset_widget_keys()
@@ -347,8 +385,8 @@ if "_goto" in st.session_state:
     st.session_state.nav = st.session_state.pop("_goto")
 
 with st.sidebar:
-    st.markdown("## 📘 BA Copilot")
-    st.caption("Notes / BRD → client-ready Requirements & HLD pack")
+    st.markdown("<div class='brand'><span class='sym'>BA</span><b>BA <span>Copilot</span></b></div>"
+                "<div class='brand-sub'>Notes &amp; BRDs → client-ready Requirements &amp; HLD</div>", unsafe_allow_html=True)
     page = st.radio("Navigate", PAGES, key="nav", label_visibility="collapsed")
 
     st.divider()
@@ -419,9 +457,20 @@ def bound_input(label, field, area=False, **kw):
 # =====================================================================  1. INPUT
 
 if page.startswith("1"):
-    st.title("1 · Input")
-    st.write("Paste messy meeting notes, an email thread or a BRD — or upload a file. "
-             "The more context you give (systems, tables, current process), the sharper the output.")
+    hero("Step 1 of 4 · Input", "Describe the requirement. <em>Get the document.</em>",
+         "Upload a BRD, paste or type meeting notes, or dictate. When you click Submit, the AI drafts all eight "
+         "sections for you to review. The more context you give, the sharper the output.")
+
+    with st.container(border=True):
+        st.markdown("**Test examples** · six realistic BFSI inputs in different styles")
+        labels = {x["key"]: f"{x['label']}  ·  {x['region']}  ·  {x['kind']}" for x in SAMPLES}
+        e1, e2 = st.columns([4, 1])
+        e1.selectbox("Example", list(labels), format_func=lambda k: labels[k], key="example_pick",
+                     label_visibility="collapsed")
+        e2.button("Load example", on_click=cb_load_example, use_container_width=True)
+        if is_demo():
+            st.caption("Demo mode returns the built-in CRA sample output for every example. "
+                       "Choose an AI provider in the sidebar to draft each example properly.")
 
     c1, c2 = st.columns([1, 1])
     with c1:
@@ -463,12 +512,11 @@ if page.startswith("1"):
         confirm = st.checkbox("Replace the existing sections with a new draft from this input "
                               "(previous versions stay available via Undo)")
 
-    b1, b2, _, b3 = st.columns([1, 1.4, 1.6, 1.2])
+    b1, b2, _ = st.columns([1, 1.4, 2.8])
     b1.button("🔄 Reset", on_click=cb_reset_inputs, use_container_width=True,
               help="Clear all inputs on this page")
     submit = b2.button("🚀 Submit to AI", type="primary", use_container_width=True,
                        help="Send all inputs to the AI and draft every section of the document")
-    b3.button("Load sample example", on_click=cb_load_sample, use_container_width=True)
 
     if submit:
         errors = []
@@ -510,9 +558,9 @@ if page.startswith("1"):
 # =====================================================================  2. SECTIONS
 
 elif page.startswith("2"):
-    st.title("2 · Sections")
-    st.caption("Each section is generated from your input **and** the sections before it, so IDs "
-               "(REQ → US → DM → TC) stay consistent. Review, edit, improve, save, then approve.")
+    hero("Step 2 of 4 · Sections", "Review each section. <em>Save when it's right.</em>",
+         "Each section builds on the ones before it, so IDs stay consistent from REQ to US, DM and TC. "
+         "Edit, improve with AI, then save. Export unlocks when all eight are saved.")
 
     n_saved = sum(1 for x in SECTIONS if section_status(x["id"])[0] in ("Saved", "Approved"))
     if all_saved():
@@ -595,9 +643,9 @@ elif page.startswith("2"):
 # =====================================================================  3. DIAGRAMS
 
 elif page.startswith("3"):
-    st.title("3 · Diagrams")
-    st.caption("Diagrams are written as Mermaid code: edit the code and the preview updates. "
-               "Choose which section each diagram appears in; untick 'Include' to leave it out.")
+    hero("Step 3 of 4 · Diagrams", "Draw the process. <em>Place it in the HLD.</em>",
+         "Diagrams are Mermaid code: edit it and the preview updates, or ask the AI to change it. "
+         "Choose which section each one appears in; untick Include to leave it out.")
 
     st.toggle("Image preview mode (use if the live preview stays blank, e.g. on a restricted network)",
               key="img_preview")
@@ -663,7 +711,8 @@ elif page.startswith("3"):
 # =====================================================================  4. PREVIEW & EXPORT
 
 else:
-    st.title("4 · Preview & Export")
+    hero("Step 4 of 4 · Review &amp; export", "Check the document. <em>Download it.</em>",
+         "Word and PDF include a cover page, document control, contents, styled tables and numbered figures.")
 
     rows = []
     for i, s in enumerate(SECTIONS):

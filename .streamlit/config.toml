@@ -1,0 +1,26 @@
+# Theme matched to "Your Next Move Awaits": navy hero, signal-yellow actions, ocean-blue accents, Manrope.
+[theme]
+base = "light"
+primaryColor = "#006da3"
+backgroundColor = "#f5f6f8"
+secondaryBackgroundColor = "#edf4f8"
+textColor = "#111c35"
+linkColor = "#006da3"
+borderColor = "#dce0e8"
+showWidgetBorder = true
+baseRadius = "4px"
+buttonRadius = "3px"
+font = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+headingFont = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
+dataframeHeaderBackgroundColor = "#0a1630"
+dataframeHeaderTextColor = "#ffffff"
+greenColor = "#006b65"
+blueColor = "#006da3"
+
+[theme.sidebar]
+backgroundColor = "#0a1630"
+secondaryBackgroundColor = "#14213d"
+textColor = "#e8eef7"
+primaryColor = "#ffdb00"
+linkColor = "#ffdb00"
+borderColor = "#2a3a58"
