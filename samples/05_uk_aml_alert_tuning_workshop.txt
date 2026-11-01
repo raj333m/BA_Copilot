@@ -1,0 +1,28 @@
+Project: Transaction Monitoring Alert Optimisation
+Client: Financial Crime Compliance - Transaction Monitoring
+Context: AML / Financial Crime - transaction monitoring
+Systems: TM platform: rules-based vendor system with scenario thresholds. Case management: separate tool. Customer risk rating from KYC platform. Data feeds from core banking and payments hub, via DW.
+
+Workshop - TM alert optimisation - FCC Ops, TM Analytics, IT, BA
+Whiteboard capture (tidy later!)
+
+PROBLEMS
+* ~11k alerts/month, 97%+ closed as false positive. analysts overloaded, SLA breaches (target close in 30 days)
+* same customer alerting repeatedly for same pattern e.g. salary + rent every month
+* thresholds same for all segments - students vs SME vs HNW all treated alike
+* customer risk rating not used by scenarios at all
+
+IDEAS / ASKS
+* segment-based thresholds (retail low/med/high risk, SME, HNW) - analytics to propose values, NOT BA
+* below-the-line testing before any threshold change - regulator expects evidence
+* suppression of repeat alerts if previously closed as FP with same pattern within 90d, BUT never for high risk customers
+* alert scoring/prioritisation so high-risk alerts go to top of queue
+* every tuning change needs model governance sign-off + documented rationale + audit trail
+* MI: alerts by scenario, FP rate, SAR conversion rate, ageing, by segment
+
+CONCERNS
+* compliance: cannot reduce effectiveness - track SAR conversion before/after
+* data quality on customer segment ~ some SMEs coded as retail
+* IT: vendor system supports per-segment thresholds but not scoring natively - may need DW-side scoring
+
+NEXT: BA to write reqs + HLD, analytics to start BTL testing on 2 scenarios first (cash deposits, rapid movement of funds)

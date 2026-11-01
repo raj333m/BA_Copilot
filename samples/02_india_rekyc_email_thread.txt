@@ -1,0 +1,24 @@
+Project: Periodic KYC Updation Automation
+Client: Private Sector Bank - Retail Liabilities & Compliance
+Context: India - RBI KYC Master Direction / AML
+Systems: Core banking: Finacle (CIF master). CKYCR upload via existing CKYC adaptor. Customer comms through SMS/email gateway and mobile app push. Reporting from enterprise data warehouse (Oracle).
+
+From: Head - Retail Ops
+To: Compliance; IT Apps; BA team
+Subject: RE: RE: Re-KYC backlog - need a proper fix this quarter
+
+Team - we have ~4.2 lakh customers overdue for periodic KYC update. Branches are calling customers manually off an Excel list that MIS sends every Monday. Audit flagged it again last week.
+
+> From Compliance: Reminder that periodic updation is risk-based - high risk every 2 yrs, medium every 8, low every 10 (per RBI KYC MD). Due date must be computed from last KYC date + risk category, not account open date (current MIS uses open date, which is wrong).
+
+> From IT Apps: Risk category is in Finacle CIF master but ~6% of CIFs have it blank. Last KYC date field is also not reliably populated for migrated accounts (pre-2015).
+
+Asks from business:
+1. auto-identify customers due in next 90 days + overdue
+2. send reminders at T-90, T-30, T-7 via SMS/email/app; stop once updated
+3. "no change" self-declaration through app/net banking for low risk customers where nothing changed
+4. if still not done X days after due date -> partial freeze of debits (Compliance to confirm X and exact wording, don't hardcode)
+5. dashboard for ops: due / overdue / completed by branch, region, risk category
+6. upload updated records to CKYCR
+
+Also - senior citizens and NRIs need a branch-assisted route, not app only. Go-live before March audit if possible. Who owns the blank risk category clean-up? not agreed yet.

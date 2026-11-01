@@ -1,0 +1,27 @@
+Project: IFRS 9 Staging Data Feed Enhancement
+Client: Group Finance - Credit Risk Reporting
+Context: IFRS 9 impairment / ECL - credit risk data
+Systems: Source: loan origination system, card platform, collections mart. Target: ECL engine input feed (monthly, CSV via SFTP). DW: Teradata risk mart. Current SICR logic held in an Excel macro owned by Credit Risk.
+
+BUSINESS REQUIREMENTS DOCUMENT (EXTRACT) - DRAFT v0.3
+
+1. Background
+The monthly ECL engine input is prepared partly by hand. Stage allocation (Stage 1 / 2 / 3) is computed in an Excel macro using days past due and a lifetime PD comparison supplied by the models team. Last two quarter-ends the feed was delivered late (WD+6 against a WD+3 target) and external audit raised a finding on lack of controls and lineage.
+
+2. Objectives
+- Move stage allocation logic into the risk mart so it is automated, repeatable and auditable.
+- Deliver the ECL input feed by WD+3.
+- Full lineage from source to feed for each account.
+
+3. Requirements (as provided by Credit Risk)
+3.1 Stage 3 if 90+ DPD or credit-impaired flag (default, forbearance with financial difficulty, insolvency).
+3.2 Stage 2 if significant increase in credit risk: 30+ DPD backstop, OR lifetime PD at reporting date > 2.5x origination lifetime PD (threshold to be confirmed by Model Risk), OR on watchlist.
+3.3 Otherwise Stage 1.
+3.4 Cure / probation: account to remain in Stage 2 for 3 consecutive months after criteria no longer met before moving to Stage 1 (TBC).
+3.5 Feed fields: account id, product, segment, balance, EAD, stage, stage reason code, origination PD, current PD, DPD, forbearance flag.
+3.6 Reconciliation of feed balances to General Ledger by product within tolerance (tolerance TBC by Finance).
+3.7 Stage movement report month on month (stage 1->2, 2->3, cures) for the Impairment Committee.
+
+4. Open points
+- Origination PD missing for ~3% of legacy card accounts - fallback approach not agreed.
+- Who signs off the feed each month - Finance or Credit Risk?

@@ -1,0 +1,17 @@
+Project: UPI Failed Transaction Reconciliation & Auto-Reversal
+Client: Payments Operations - Digital Banking
+Context: India - UPI / NPCI dispute handling, RBI TAT framework
+Systems: UPI switch (in-house). NPCI settlement and raw files daily. Core banking: Finacle. Complaint system: CRM. Recon currently via SQL scripts + Excel on a shared drive.
+
+Payments ops escalation - notes from call with Head Payments Ops, Recon team lead, Customer Service, IT (switch team)
+
+- Customers debited but beneficiary not credited (deemed / failed txns). Recon team matching switch logs vs NPCI raw files vs CBS manually in Excel. ~2,500 exceptions/day at peak, festive season worse.
+- RBI TAT framework says auto-reversal within T+1 for failed UPI txns, compensation per day of delay beyond that - we paid compensation for ~1,100 cases last month. Big cost + complaints.
+- Need: automated 3-way recon - switch vs NPCI vs CBS - daily, by RRN (UPI ref no). Categories: success, failed-debited (reverse), deemed (wait for NPCI status), duplicate.
+- Auto-reversal to customer account for confirmed failed-debited, with SMS. Manual queue for anything ambiguous.
+- Ageing buckets + TAT breach alert before T+1 cut-off, so ops can act.
+- Compensation calc: auto-compute where TAT breached, credit customer, report.
+- Link to CRM so CS agents can see recon status when customer calls instead of raising a new complaint.
+- Daily MIS: volumes, exceptions by reason, reversals done, TAT breaches, compensation paid.
+- IT says NPCI files sometimes arrive late / multiple cycles per day - design must handle multiple settlement cycles.
+- Audit trail for every reversal (who/what/when). Maker-checker for manual reversals above a limit (limit TBD by Ops head).

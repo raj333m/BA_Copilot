@@ -1,3 +1,8 @@
+Project: CRA Arrangement Reporting Remediation
+Client: Retail Bank - Credit Reporting & Collections
+Context: UK Consumer Credit - CRA reporting / FCA Consumer Duty
+Systems: Collections system: CollectPro (arrangement table). Data warehouse: credit reporting mart (Teradata). Monthly CRA file produced by DW ETL.
+
 Mtg notes - 14 Oct - Collections / Credit Reporting / DW team
 
 - collections ops raised: customers on a payment arrangement are still showing as "in arrears" on the monthly credit reference agency (CRA) file. complaints going up, 23 last month. Consumer Duty risk flagged by Compliance.

@@ -1,0 +1,16 @@
+Project: Vulnerability-Aware Collections Strategy
+Client: Retail Bank - Collections & Recoveries
+Context: UK - FCA Consumer Duty / FG21/1 vulnerable customers
+Systems: Dialler: auto-dialler fed by nightly strategy file. Collections workflow: CollectPro. Customer vulnerability notes currently free text in CRM (Dynamics). DW: collections mart.
+
+ok so this is my dictation from the call with Sarah from collections strategy and the vulnerable customers team, um, Tuesday afternoon.
+
+so the problem is when an agent records that a customer is vulnerable, like bereavement or mental health or they've lost their job, it just goes in as a free text note in the CRM and nothing downstream picks it up. so the dialler keeps calling them at the same frequency as everyone else and the letters go out in the standard tone. we had two complaints escalated to the ombudsman last quarter about exactly this.
+
+what they want is a structured vulnerability flag with a type, a severity maybe low medium high, a review date, and who recorded it. customer consent to record it is important, Sarah was very clear, we need consent captured.
+
+then the collections strategy should use the flag, so for high severity no outbound dialler calls, specialist team only, reduce contact frequency, pause fees and charges for thirty days, actually she said sixty, need to confirm. letters should switch to the supportive template.
+
+flags should expire at the review date unless someone renews it, and there should be a report for the vulnerable customers team showing flags due for review and how many contacts were made with flagged customers.
+
+data protection said it's special category data for health related ones so access needs to be restricted, only collections and the vulnerability team. oh and they want MI for the board quarterly, outcomes for vulnerable versus non vulnerable customers. that's it I think. timeline is phase one by end of Q2.
