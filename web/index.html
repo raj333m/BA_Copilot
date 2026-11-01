@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BA Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/pdfmake.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfmake@0.2.20/build/vfs_fonts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"></script>
+<style>
+/* Layout idea: a document workbench. Top bar with a 4-step rail; left list of sections with
+   status stripes, right a working pane. Navy ink + ledger-blue accent, amber/green status. */
+:root {
+  --ink: #15233a;
+  --muted: #5b6b82;
+  --paper: #f4f6f9;
+  --panel: #ffffff;
+  --line: #dde3eb;
+  --accent: #1f4e8c;
+  --accent-ink: #ffffff;
+  --accent-soft: #e6eef8;
+  --ok: #1d7a46; --ok-soft: #e3f4ea;
+  --warn: #9a5b00; --warn-soft: #fdf1dc;
+  --bad: #b42318; --bad-soft: #fdecea;
+  --code: #eef1f5;
+  --font-display: "IBM Plex Serif", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #e6ecf4; --muted: #9aa8bb; --paper: #0e1622; --panel: #152133; --line: #26354b;
+    --accent: #6ea3e6; --accent-ink: #0b1420; --accent-soft: #1b2d47;
+    --ok: #5fcf8f; --ok-soft: #15301f; --warn: #f0b45a; --warn-soft: #33270f;
+    --bad: #f28b82; --bad-soft: #3a1714; --code: #1b2a3f; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #e6ecf4; --muted: #9aa8bb; --paper: #0e1622; --panel: #152133; --line: #26354b;
+  --accent: #6ea3e6; --accent-ink: #0b1420; --accent-soft: #1b2d47;
+  --ok: #5fcf8f; --ok-soft: #15301f; --warn: #f0b45a; --warn-soft: #33270f;
+  --bad: #f28b82; --bad-soft: #3a1714; --code: #1b2a3f; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font: 600 26px/1.2 var(--font-display); }
+h2 { font: 600 20px/1.3 var(--font-display); }
+h3 { font: 600 15px/1.4 var(--font-body); }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 24px; padding: 10px 24px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand b { font: 600 19px var(--font-display); }
+.brand span { color: var(--muted); font-size: 13px; }
+.rail { display: flex; gap: 4px; flex-wrap: wrap; }
+.rail button { border: 1px solid transparent; background: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;
+  color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.rail button .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px;
+  border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.rail button[aria-current="true"] { color: var(--ink); background: var(--accent-soft); }
+.rail button[aria-current="true"] .n { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.rail button.done .n { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+.top .spacer { flex: 1; }
+.top .meta { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+
+main { max-width: 1320px; margin: 0 auto; padding: 24px; display: grid; gap: 20px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+.lede { color: var(--muted); max-width: 75ch; margin: 4px 0 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.grid3 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+@media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+label.f { display: grid; gap: 5px; align-content: start; font-size: 13px; font-weight: 500; }
+label.f small { font-weight: 400; color: var(--muted); }
+input[type=text], select, textarea { width: 100%; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 10px; }
+textarea { resize: vertical; font: 13.5px/1.55 var(--font-mono); }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: .75; }
+
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 8px 14px; cursor: pointer;
+  display: inline-flex; gap: 6px; align-items: center; justify-content: center; font-weight: 500; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.ghost { border-color: transparent; background: none; color: var(--muted); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row .grow { flex: 1; }
+
+.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 8px; text-align: center;
+  color: var(--muted); cursor: pointer; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.chip { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 2px 10px; font-size: 12.5px;
+  display: inline-flex; gap: 6px; align-items: center; }
+.chip button { border: none; background: none; cursor: pointer; color: var(--muted); padding: 0; }
+
+.notice { border-radius: 8px; padding: 10px 14px; font-size: 14px; border: 1px solid; }
+.notice.info { background: var(--accent-soft); border-color: transparent; }
+.notice.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.notice.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill.none { background: var(--code); color: var(--muted); }
+.pill.draft { background: var(--warn-soft); color: var(--warn); }
+.pill.saved { background: var(--accent-soft); color: var(--accent); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+
+.ws { display: grid; grid-template-columns: 290px 1fr; gap: 20px; align-items: start; }
+@media (max-width: 900px) { .ws { grid-template-columns: 1fr; } }
+.seclist { display: grid; gap: 4px; position: sticky; top: 76px; }
+.seclist button { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
+  padding: 9px 12px 9px 14px; cursor: pointer; display: grid; gap: 2px; position: relative; overflow: hidden; }
+.seclist button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line); }
+.seclist button[data-s="draft"]::before { background: var(--warn); }
+.seclist button[data-s="saved"]::before { background: var(--accent); }
+.seclist button[data-s="ok"]::before { background: var(--ok); }
+.seclist button[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.seclist .t { font-weight: 500; font-size: 14px; }
+.seclist .s { font-size: 12px; color: var(--muted); }
+.progress { height: 6px; background: var(--code); border-radius: 99px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.progress.full i { background: var(--ok); }
+
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.tabs button { border: none; background: none; padding: 8px 14px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); font-weight: 500; }
+#editor { min-height: 520px; }
+.md { max-width: 100%; overflow-x: auto; }
+.md table { border-collapse: collapse; font-size: 13px; margin: 8px 0 14px; width: 100%; }
+.md th { background: var(--accent); color: var(--accent-ink); text-align: left; }
+.md th, .md td { border: 1px solid var(--line); padding: 5px 8px; vertical-align: top; }
+.md tr:nth-child(even) td { background: var(--paper); }
+.md pre { background: var(--code); padding: 10px 12px; border-radius: 6px; overflow-x: auto; font: 12.5px/1.5 var(--font-mono); }
+.md code { font-family: var(--font-mono); font-size: .92em; }
+.md h2 { margin: 18px 0 6px; font-size: 17px; color: var(--accent); }
+.md h3 { margin: 14px 0 4px; }
+.md p, .md ul, .md ol { margin: 4px 0 8px; }
+details.improve { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+details.improve summary { cursor: pointer; font-weight: 500; }
+
+.dgrid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; }
+@media (max-width: 900px) { .dgrid { grid-template-columns: 1fr; } }
+.dprev { border: 1px solid var(--line); border-radius: 8px; background: #fff; min-height: 300px; max-height: 520px; overflow: auto; padding: 10px; color: #111; }
+.dprev svg { max-width: 100%; height: auto; }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.checks label { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; display: flex; gap: 6px; align-items: center; cursor: pointer; font-size: 14px; }
+.checks input:checked + span { font-weight: 600; }
+
+table.status { border-collapse: collapse; width: 100%; font-size: 14px; }
+table.status th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 6px 8px; }
+table.status td { border-bottom: 1px solid var(--line); padding: 7px 8px; font-variant-numeric: tabular-nums; }
+.docprev { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 32px 40px; }
+.docprev h1.sec { font: 600 21px var(--font-display); color: var(--accent); margin: 26px 0 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+.docprev h1.sec:first-child { border: none; padding-top: 0; margin-top: 0; }
+figure { margin: 12px 0; text-align: center; }
+figure figcaption { font-size: 12.5px; color: var(--muted); font-style: italic; }
+
+.overlay { position: fixed; inset: 0; background: rgba(10, 18, 30, .55); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.overlay .box { background: var(--panel); border-radius: 12px; width: min(720px, 100%); padding: 22px; display: grid; gap: 14px; max-height: 90vh; overflow: auto; }
+.steps { display: grid; gap: 4px; font-size: 14px; }
+.steps div { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+.steps div.cur { color: var(--ink); font-weight: 500; }
+.steps div.done { color: var(--ok); }
+.live { background: var(--code); border-radius: 6px; padding: 10px; font: 12px/1.45 var(--font-mono); height: 180px; overflow: auto; white-space: pre-wrap; }
+.toast { position: fixed; right: 20px; bottom: 20px; z-index: 30; max-width: 420px; display: grid; gap: 8px; }
+.hidden { display: none !important; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 12px var(--font-mono); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><b>BA Copilot</b><span>Notes &amp; BRDs → client-ready Requirements &amp; HLD</span></div>
+  <nav class="rail" id="rail" aria-label="Steps"></nav>
+  <div class="spacer"></div>
+  <div class="meta"><span id="saveState">Not saved yet</span><button class="btn" id="projBtn" type="button">Projects</button></div>
+</header>
+<main id="main"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ====================================================================== content */
+const SYSTEM = `You are a senior Business Analyst with 15+ years in Banking & Financial Services (UK and India): regulatory reporting, consumer credit, credit reference agency reporting, collections & recoveries, data warehousing (Teradata/SQL) and UAT.
+You turn raw inputs (messy meeting notes, emails, dictation, or business requirement documents) into client-ready project documentation.
+Rules:
+- Write in clear, professional, client-ready British English. Concise, no filler.
+- Output GitHub-flavoured Markdown only. Use '##' and '###' for headings (never '#').
+- Use Markdown tables for structured data. Use \`\`\`sql and \`\`\`gherkin code fences for code.
+- Never invent hard facts (system names, table names, dates, figures, regulation clauses). If something is not in the input, state it as an assumption marked **[Assumption]** or list it under open questions.
+- Use stable IDs so documents cross-reference: REQ-01, US-01, DM-01, TC-01, BR-01, DQ-01, RISK-01.
+- Do not add any preamble such as "Here is..."; start directly with the content.`;
+
+const SECTIONS = [
+ {id:"analysis", title:"Requirement Analysis & Executive Summary", deps:[], ins:`Produce:
+## Executive Summary (4-6 sentences: business problem, objective, expected outcome)
+## Business Objectives (bullets)
+## Scope (### In Scope / ### Out of Scope)
+## Stakeholders (table: Stakeholder | Role | Interest / Responsibility)
+## Business Requirements (table: ID | Requirement | Priority (MoSCoW) | Source) - atomic requirements REQ-01, REQ-02...
+## Assumptions
+## Constraints & Dependencies
+## Open Questions for the Business (numbered; gaps found in the input)`},
+ {id:"as_is", title:"Current Process (AS-IS)", deps:["analysis"], ins:`Describe the current state.
+## Process Overview (short paragraph)
+## Process Steps (table: Step | Actor | Activity | System / Tool | Output)
+## Pain Points & Risks (table: # | Pain Point | Impact | Linked REQ)
+## Current Data Sources & Systems (bullets)
+If the input gives little detail about today's process, describe the most likely current state for this kind of BFSI process and mark it clearly with **[Assumption]**.`},
+ {id:"to_be", title:"Future Process (TO-BE)", deps:["analysis","as_is"], ins:`Describe the target state.
+## Target Process Overview
+## Process Steps (table: Step | Actor | Activity | System / Tool | Control / Check)
+## Key Changes from AS-IS (table: Area | AS-IS | TO-BE | Benefit)
+## Business Rules (table: Rule ID | Rule | Linked REQ) - BR-01...
+## Controls & Governance (data quality, reconciliation, sign-off, audit trail)
+## Expected Benefits (quantify only where the input supports it)`},
+ {id:"user_stories", title:"User Stories & Acceptance Criteria", deps:["analysis","to_be"], ins:`Write user stories covering every REQ. For each story:
+### US-xx: <short title>
+**Linked requirement:** REQ-xx | **Priority:** Must/Should/Could
+**Story:** As a <role>, I want <capability>, so that <benefit>.
+**Acceptance criteria:**
+\`\`\`gherkin
+Scenario: ...
+  Given ...
+  When ...
+  Then ...
+\`\`\`
+Include at least one negative / exception scenario where relevant. Finish with ## Definition of Done (bullets).`},
+ {id:"data_mapping", title:"Data Requirements & Source-to-Target Mapping", deps:["analysis","to_be","user_stories"], ins:`Produce:
+## Data Entities in Scope (bullets with one-line description)
+## Source-to-Target Mapping (table: ID | Target Field | Description | Data Type | Source System | Source Table.Column | Transformation Rule | Mandatory | Linked US) - IDs DM-01...; mark guessed table/column names [Assumption]
+## Data Quality Rules (table: DQ ID | Field | Rule | Threshold | Action on Failure)
+## Reference Data & Code Values (where relevant)
+## Data Retention & Privacy Considerations (UK GDPR / DPDP Act as applicable)`},
+ {id:"test_cases", title:"Test Cases & SQL Validation", deps:["user_stories","data_mapping"], ins:`Produce:
+## Test Approach (short: test levels, environments, entry/exit criteria)
+## UAT Test Cases (table: TC ID | Linked US | Scenario | Pre-condition | Test Steps | Expected Result | Type (Positive/Negative/Boundary))
+## SQL Validation Queries - for each check a ### heading, a one-line comment saying what a failure means, and a \`\`\`sql block (ANSI / Teradata-compatible): record count reconciliation, mandatory null checks, transformation rule validation, duplicate key check, threshold / business rule checks
+## Defect Severity Guidelines (short table)`},
+ {id:"hld", title:"High-Level Design", deps:["analysis","to_be","data_mapping"], ins:`Produce a high-level solution design:
+## Solution Overview
+## Architecture Components (table: Component | Purpose | Technology [Assumption if not given])
+## Data Flow (numbered steps from source to consumption/reporting)
+## Interfaces & Integrations (table: Interface | Source | Target | Frequency | Format)
+## Non-Functional Requirements (table: Category | Requirement)
+## Security & Access Control
+## Risks & Mitigations (table: RISK ID | Risk | Likelihood | Impact | Mitigation)
+## Implementation Approach & Phasing
+## Approvals Required (sign-off roles)`},
+ {id:"traceability", title:"Requirements Traceability Matrix", deps:["analysis","user_stories","data_mapping","test_cases"], ins:`Produce:
+## Traceability Matrix (table: REQ ID | Requirement (short) | User Story IDs | Data Mapping IDs | Test Case IDs | Coverage Status) - Covered / Partially Covered / Gap
+## Coverage Summary (counts and any gaps with recommended action)
+Only use IDs that actually exist in the provided sections.`},
+];
+const SEC = Object.fromEntries(SECTIONS.map(s => [s.id, s]));
+
+const PRESETS = {
+ "Make it client-ready": "Rewrite to be polished, client-ready and professional. Keep all facts, IDs, tables and structure.",
+ "Fix grammar & clarity": "Fix grammar, spelling and clarity only. Do not change meaning, IDs or structure.",
+ "Make it concise": "Make it more concise: remove repetition and filler while keeping every requirement, ID and table.",
+ "Add more detail": "Expand with more depth and BFSI best-practice detail. Keep existing IDs; add new rows or items where useful.",
+};
+
+const DIAGRAMS = {
+ "AS-IS process flow": {start:"flowchart TD", attach:"as_is", src:["as_is"], guide:"Flowchart of the current process with a subgraph per actor. Highlight pain-point steps with a classDef."},
+ "TO-BE process flow": {start:"flowchart TD", attach:"to_be", src:["to_be"], guide:"Flowchart of the target process with decision diamonds for checks and controls."},
+ "Customer journey": {start:"journey", attach:"to_be", src:["analysis","to_be"], guide:"Mermaid journey diagram of the customer's experience across stages, satisfaction scores 1-5 and actors."},
+ "State chart": {start:"stateDiagram-v2", attach:"hld", src:["to_be","data_mapping"], guide:"Lifecycle of the key business entity with transitions labelled by events."},
+ "System sequence diagram": {start:"sequenceDiagram", attach:"hld", src:["hld"], guide:"Interactions between users, systems and interfaces in the TO-BE solution."},
+ "Data flow / architecture": {start:"flowchart LR", attach:"hld", src:["hld","data_mapping"], guide:"Left-to-right flow from source systems through staging, warehouse and controls to reports and consumers."},
+ "Data model (ER diagram)": {start:"erDiagram", attach:"data_mapping", src:["data_mapping"], guide:"Key entities, relationships and main attributes."},
+};
+
+const SAMPLE = {
+ meta: {project_name:"CRA Arrangement Reporting Remediation", client:"Retail Bank - Credit Reporting & Collections", author:"", version:"0.1",
+   doc_title:"Business Requirements & High-Level Design", domain:"UK Consumer Credit - CRA reporting / FCA Consumer Duty",
+   system_context:"Collections system: CollectPro (arrangement table). Data warehouse: credit reporting mart (Teradata). Monthly CRA file produced by DW ETL."},
+ notes: `Mtg notes - 14 Oct - Collections / Credit Reporting / DW team
+
+- collections ops raised: customers on a payment arrangement are still showing as "in arrears" on the monthly credit reference agency (CRA) file. complaints going up, 23 last month. Consumer Duty risk flagged by Compliance.
+- arrangement data sits in the collections system (CollectPro). DW does not currently take the arrangement table, only arrears balance + days past due.
+- CRA file built monthly from DW (credit reporting mart). Status code logic is in the DW ETL.
+- need: new arrangement indicator + arrangement start/end date in DW, feed into CRA status logic -> arrangement accounts reported with the arrangement flag, not just arrears status.
+- if arrangement broken (2 missed payments) should revert to arrears reporting.
+- want DQ checks before file goes out - counts recon DW vs file, no nulls in mandatory fields, flag mismatches.
+- ops want an exceptions report / dashboard each month before submission. sign-off by credit reporting lead.
+- historic correction? TBC - compliance to confirm if past 6 months need amendments.
+- target: Q1 next year. products in scope: personal loans + credit cards. mortgages out of scope for now.`
+};
+
+/* ====================================================================== state */
+const VIEWS = [["input","Input"],["sections","Sections"],["diagrams","Diagrams"],["export","Review & Export"]];
+const blankMeta = () => ({project_name:"", client:"", author:"", version:"0.1", doc_title:"Business Requirements & High-Level Design", domain:"", system_context:""});
+function newProject() {
+  const o = {}; SECTIONS.forEach(s => o[s.id] = "");
+  return { id: "p" + Date.now().toString(36), meta: blankMeta(), notes: "", file_text: "", file_names: [],
+    sections: {...o}, saved: {...o}, approved: Object.fromEntries(SECTIONS.map(s => [s.id, false])),
+    diagrams: [], updated_at: "" };
+}
+let P = newProject();
+let history = {};               // per-section undo stack (session only)
+let view = "input", cur = "analysis", tab = "edit";
+let pendingFiles = [];          // File objects chosen but not yet read
+let sample = null, downloads = null, db = null, uid = null;
+let busy = false, abortCtl = null;
+
+/* ====================================================================== helpers */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function toast(msg, kind = "info", ms = 5000) {
+  const d = document.createElement("div"); d.className = "notice " + kind; d.textContent = msg;
+  $("#toast").appendChild(d); setTimeout(() => d.remove(), ms);
+}
+function status(id) {
+  const t = (P.sections[id] || "").trim();
+  if (!t) return ["Not started", "none"];
+  if (P.approved[id]) return ["Approved", "ok"];
+  if (P.sections[id] === P.saved[id]) return ["Saved", "saved"];
+  return ["Draft - not saved", "draft"];
+}
+const isSaved = id => ["saved", "ok"].includes(status(id)[1]);
+const savedCount = () => SECTIONS.filter(s => isSaved(s.id)).length;
+const allSaved = () => savedCount() === SECTIONS.length;
+const combinedInput = () => [P.notes.trim(), P.file_text.trim()].filter(Boolean).join("\n\n");
+const stripFences = t => { const m = t.trim().match(/^```[a-zA-Z]*\s*\n([\s\S]*)\n```\s*$/); return m ? m[1].trim() : t.trim(); };
+const slug = s => (s || "ba_document").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "") || "ba_document";
+
+function ctxBlock() {
+  const m = P.meta, L = [`Project: ${m.project_name || "Untitled"}`];
+  if (m.client) L.push(`Client / Business unit: ${m.client}`);
+  if (m.domain) L.push(`Domain / regulatory context: ${m.domain}`);
+  if (m.system_context) L.push(`Known systems, tables and current process details:\n${m.system_context}`);
+  L.push(`=== RAW INPUT (notes / BRD / dictation) ===\n${combinedInput()}`);
+  return L.join("\n");
+}
+function sectionPrompt(id) {
+  const s = SEC[id], parts = [SYSTEM, ctxBlock()];
+  s.deps.forEach(d => { if (P.sections[d].trim()) parts.push(`=== EXISTING SECTION: ${SEC[d].title} ===\n${P.sections[d]}`); });
+  parts.push(`=== YOUR TASK ===\nWrite the section '${s.title}'.\n${s.ins}`);
+  return parts.join("\n\n");
+}
+
+async function ask(prompt, onText) {
+  if (!sample) throw {message: "The AI engine is not available in this view. Open the page on claude.ai while signed in."};
+  abortCtl = new AbortController();
+  const r = await sample(prompt, {modelTier: "default", cache: false, signal: abortCtl.signal,
+    onText: onText ? (({text}) => onText(text)) : undefined});
+  return stripFences(r.text || "");
+}
+function aiError(e) {
+  if (e && e.code === "rate_limited") return "The AI is busy right now. Wait a minute and try again.";
+  if (e && e.code === "not_granted") return "Permission to use Claude was not granted. Reload the page and allow it.";
+  if (e && e.name === "AbortError") return "Stopped.";
+  return (e && e.message) || "Something went wrong talking to the AI.";
+}
+function setSection(id, text) {
+  if (P.sections[id].trim() && P.sections[id] !== text) (history[id] = history[id] || []).push(P.sections[id]);
+  if (history[id] && history[id].length > 10) history[id].shift();
+  P.sections[id] = text;
+}
+
+/* ====================================================================== persistence */
+let saveTimer = null;
+async function persist() {
+  P.updated_at = new Date().toISOString();
+  const body = JSON.parse(JSON.stringify(P));
+  try { localStorage.setItem("bacopilot:last", JSON.stringify(body)); } catch (_) {}
+  if (db && uid) {
+    try { await db.collection("data/users/" + uid).doc(P.id).set(body);
+      $("#saveState").textContent = "Saved to your projects · " + new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
+    } catch (e) { $("#saveState").textContent = "Saved in this browser only"; }
+  } else {
+    $("#saveState").textContent = "Saved in this browser";
+  }
+}
+function persistSoon() { clearTimeout(saveTimer); saveTimer = setTimeout(persist, 1200); }
+
+async function listProjects() {
+  if (db && uid) {
+    try { const q = await db.collection("data/users/" + uid).orderBy("updated_at", "desc").limit(50).get();
+      return q.docs.map(d => d.data()); } catch (_) {}
+  }
+  try { const l = JSON.parse(localStorage.getItem("bacopilot:last")); return l ? [l] : []; } catch (_) { return []; }
+}
+function loadProject(data) {
+  const base = newProject();
+  P = {...base, ...data, meta: {...base.meta, ...(data.meta || {})}, sections: {...base.sections, ...(data.sections || {})},
+       saved: {...base.saved, ...(data.saved || {})}, approved: {...base.approved, ...(data.approved || {})},
+       diagrams: data.diagrams || [], file_names: data.file_names || []};
+  history = {}; pendingFiles = [];
+  render();
+}
+
+/* ====================================================================== render: shell */
+function renderRail() {
+  $("#rail").innerHTML = VIEWS.map(([v, l], i) => {
+    const done = (v === "input" && SECTIONS.some(s => P.sections[s.id].trim())) || (v === "sections" && allSaved()) ||
+                 (v === "diagrams" && P.diagrams.length > 0);
+    return `<button type="button" data-v="${v}" aria-current="${view === v}" class="${done && view !== v ? "done" : ""}"><span class="n">${done && view !== v ? "✓" : i + 1}</span>${l}</button>`;
+  }).join("");
+  $("#rail").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.v));
+}
+function go(v) { view = v; render(); window.scrollTo(0, 0); }
+function render() {
+  renderRail();
+  ({input: renderInput, sections: renderSections, diagrams: renderDiagrams, export: renderExport})[view]();
+}
+
+/* ====================================================================== view: input */
+function renderInput() {
+  const m = P.meta, has = SECTIONS.some(s => P.sections[s.id].trim());
+  $("#main").innerHTML = `
+  <section>
+    <h1>Describe the requirement</h1>
+    <p class="lede">Upload a BRD, paste or type meeting notes, or dictate. Use any combination. When you click <b>Submit</b>, the AI reads everything and drafts all eight sections of the document for you to review.</p>
+  </section>
+  ${!combinedInput() && !m.project_name ? "" : (P._sample ? `<div class="notice info">An example is loaded so you can see how it works. Click <b>Reset</b> to start with your own input.</div>` : "")}
+  <div class="card">
+    <h2>Project details</h2>
+    <div class="grid2">
+      ${field("project_name", "Project name", "e.g. CRA Arrangement Reporting Remediation", true)}
+      ${field("author", "Prepared by", "Your name")}
+      ${field("client", "Client / business unit", "e.g. Retail Bank - Credit Reporting")}
+      ${field("version", "Version", "0.1")}
+      ${field("doc_title", "Document title", "")}
+      ${field("domain", "Domain / regulatory context", "e.g. UK Consumer Credit - FCA Consumer Duty")}
+    </div>
+  </div>
+  <div class="card">
+    <h2>Requirement input</h2>
+    <div class="grid3">
+      <div style="display:grid;gap:8px">
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload documents">
+          <b style="color:var(--ink)">Upload BRD or notes</b>
+          <span>Drop files here or click to choose · .docx, .pdf, .txt, .md</span>
+          <div class="chips" id="fileChips"></div>
+        </div>
+        <input type="file" id="fileIn" multiple accept=".docx,.pdf,.txt,.md" class="hidden">
+      </div>
+      <div style="display:grid;gap:8px;align-content:start">
+        <button class="btn" type="button" id="dictBtn">🎙 Dictate into notes</button>
+        <div class="notice info" id="dictHelp" style="font-size:13px">To dictate, click into the notes box and press <kbd>Win</kbd> + <kbd>H</kbd> on Windows, or press <kbd>Fn</kbd> twice on a Mac. Your words are typed straight into the box.</div>
+      </div>
+    </div>
+    <label class="f" for="notes">Notes or requirement text <small>Paste, type or dictate. Messy notes are fine.</small>
+      <textarea id="notes" rows="11" placeholder="Paste meeting notes, an email thread or BRD text here...">${esc(P.notes)}</textarea></label>
+    <label class="f" for="f_system_context">Known systems, tables, current process <small>Optional, but it makes the AS-IS, mapping and SQL much sharper.</small>
+      <textarea id="f_system_context" rows="3" placeholder="e.g. Source: CollectPro arrangement table. Target: Teradata credit reporting mart.">${esc(m.system_context)}</textarea></label>
+    ${has ? `<label class="row" style="font-size:14px"><input type="checkbox" id="replaceOk"> Replace the existing sections with a new draft from this input (earlier text stays available through Undo)</label>` : ""}
+    <div id="inErr"></div>
+    <div class="row">
+      <button class="btn" type="button" id="resetBtn">Reset</button>
+      <button class="btn primary" type="button" id="submitBtn">Submit to AI</button>
+      <span class="grow"></span>
+      <button class="btn ghost" type="button" id="sampleBtn">Load the example</button>
+    </div>
+  </div>`;
+  ["project_name","author","client","version","doc_title","domain","system_context"].forEach(k => {
+    const el = $("#f_" + k); el.oninput = () => { P.meta[k] = el.value; persistSoon(); };
+  });
+  $("#notes").oninput = e => { P.notes = e.target.value; persistSoon(); };
+  const drop = $("#drop"), fin = $("#fileIn");
+  drop.onclick = () => fin.click();
+  drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fin.click(); } };
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); addFiles([...e.dataTransfer.files]); };
+  fin.onchange = () => { addFiles([...fin.files]); fin.value = ""; };
+  renderChips();
+  $("#dictBtn").onclick = startDictation;
+  $("#resetBtn").onclick = resetInputs;
+  $("#submitBtn").onclick = submit;
+  $("#sampleBtn").onclick = () => { P.meta = {...SAMPLE.meta, author: P.meta.author}; P.notes = SAMPLE.notes; P._sample = true; persistSoon(); renderInput(); };
+}
+function field(k, label, ph, req) {
+  return `<label class="f" for="f_${k}">${label}${req ? " *" : ""}<input type="text" id="f_${k}" value="${esc(P.meta[k])}" placeholder="${esc(ph)}"></label>`;
+}
+function addFiles(files) {
+  files.filter(f => /\.(docx|pdf|txt|md)$/i.test(f.name)).forEach(f => { if (!pendingFiles.some(p => p.name === f.name)) pendingFiles.push(f); });
+  renderChips();
+}
+function renderChips() {
+  const names = [...pendingFiles.map(f => f.name), ...P.file_names.filter(n => !pendingFiles.some(f => f.name === n)).map(n => n + " (read)")];
+  $("#fileChips").innerHTML = names.map((n, i) => `<span class="chip">${esc(n)}<button type="button" aria-label="Remove ${esc(n)}" data-i="${i}">✕</button></span>`).join("");
+  $("#fileChips").querySelectorAll("button").forEach(b => b.onclick = ev => {
+    ev.stopPropagation(); const i = +b.dataset.i;
+    if (i < pendingFiles.length) pendingFiles.splice(i, 1); else { P.file_names = []; P.file_text = ""; }
+    renderChips();
+  });
+}
+function startDictation() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const help = $("#dictHelp");
+  const fallback = msg => { help.className = "notice warn"; help.innerHTML = (msg ? esc(msg) + " " : "") +
+    "Click into the notes box and press <kbd>Win</kbd> + <kbd>H</kbd> (Windows) or <kbd>Fn</kbd> twice (Mac) to dictate with your computer's voice typing."; $("#notes").focus(); };
+  if (!SR) return fallback("This browser can't record here.");
+  try {
+    const rec = new SR(); rec.lang = "en-IN"; rec.continuous = true; rec.interimResults = false;
+    const btn = $("#dictBtn"); btn.textContent = "● Listening... click to stop";
+    rec.onresult = e => { let t = ""; for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript + " ";
+      P.notes = (P.notes.trimEnd() + "\n" + t.trim()).trim(); $("#notes").value = P.notes; persistSoon(); };
+    rec.onerror = () => { btn.textContent = "🎙 Dictate into notes"; fallback("The microphone is blocked inside this page."); };
+    rec.onend = () => { btn.textContent = "🎙 Dictate into notes"; btn.onclick = startDictation; };
+    btn.onclick = () => rec.stop();
+    rec.start();
+  } catch (_) { fallback("The microphone is blocked inside this page."); }
+}
+function resetInputs() {
+  P.meta = blankMeta(); P.notes = ""; P.file_text = ""; P.file_names = []; pendingFiles = []; delete P._sample;
+  persistSoon(); renderInput(); toast("Inputs cleared. Your generated sections are kept until you submit new input.");
+}
+async function readFile(f) {
+  const name = f.name.toLowerCase();
+  if (name.endsWith(".docx")) { const r = await mammoth.extractRawText({arrayBuffer: await f.arrayBuffer()}); return r.value; }
+  if (name.endsWith(".pdf")) {
+    const pdf = await pdfjsLib.getDocument({data: new Uint8Array(await f.arrayBuffer())}).promise; let out = [];
+    for (let i = 1; i <= pdf.numPages; i++) { const pg = await pdf.getPage(i); const c = await pg.getTextContent(); out.push(c.items.map(x => x.str).join(" ")); }
+    return out.join("\n");
+  }
+  return await f.text();
+}
+async function submit() {
+  const errs = [], err = $("#inErr");
+  if (!P.meta.project_name.trim()) errs.push("Enter a project name.");
+  if (pendingFiles.length) {
+    const texts = [], names = [];
+    for (const f of pendingFiles) {
+      try { texts.push(`--- Document: ${f.name} ---\n${await readFile(f)}`); names.push(f.name); }
+      catch (e) { errs.push(`Could not read ${f.name}. Save it as .docx, .pdf or .txt and try again.`); }
+    }
+    if (names.length) { P.file_text = texts.join("\n\n"); P.file_names = names; pendingFiles = []; }
+  }
+  if (!combinedInput()) errs.push("Add some input: upload a document, paste notes or dictate.");
+  const rep = $("#replaceOk"); if (rep && !rep.checked) errs.push("Tick the box to confirm you want to replace the existing sections.");
+  if (errs.length) { err.innerHTML = errs.map(e => `<div class="notice bad">${esc(e)}</div>`).join(""); return; }
+  err.innerHTML = "";
+  const ok = await runGeneration(SECTIONS.map(s => s.id));
+  delete P._sample; await persist();
+  if (ok) { cur = "analysis"; tab = "edit"; go("sections"); toast("All sections drafted. Review each one, edit as needed and click Save.", "ok", 7000); }
+  else render();
+}
+
+/* ====================================================================== generation overlay */
+async function runGeneration(ids) {
+  if (busy) return false; busy = true;
+  const ov = document.createElement("div"); ov.className = "overlay";
+  ov.innerHTML = `<div class="box" role="dialog" aria-label="Drafting document">
+    <h2>Drafting your document</h2>
+    <p class="lede" style="margin:0">Each section builds on the ones before it, so IDs stay consistent from requirements to test cases. This takes a few minutes.</p>
+    <div class="progress"><i id="ovBar" style="width:0%"></i></div>
+    <div class="steps" id="ovSteps">${ids.map(id => `<div data-id="${id}"><span>○</span>${esc(SEC[id].title)}</div>`).join("")}</div>
+    <div class="live" id="ovLive" aria-live="off"></div>
+    <div class="row"><span class="grow"></span><button class="btn" type="button" id="ovStop">Stop</button></div></div>`;
+  document.body.appendChild(ov);
+  let stopped = false;
+  ov.querySelector("#ovStop").onclick = () => { stopped = true; abortCtl && abortCtl.abort(); };
+  let ok = true;
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i], row = ov.querySelector(`[data-id="${id}"]`);
+    row.className = "cur"; row.firstChild.textContent = "●";
+    ov.querySelector("#ovBar").style.width = (i / ids.length * 100) + "%";
+    try {
+      const text = await ask(sectionPrompt(id), t => { const l = ov.querySelector("#ovLive"); l.textContent = t; l.scrollTop = l.scrollHeight; });
+      setSection(id, text); P.approved[id] = false;
+      row.className = "done"; row.firstChild.textContent = "✓";
+    } catch (e) {
+      ok = false; if (!stopped) toast(`${SEC[id].title}: ${aiError(e)}`, "bad", 9000);
+      break;
+    }
+    if (stopped) { ok = false; break; }
+  }
+  ov.querySelector("#ovBar").style.width = "100%";
+  ov.remove(); busy = false; persistSoon();
+  return ok;
+}
+
+/* ====================================================================== view: sections */
+function renderSections() {
+  const n = savedCount(), s = SEC[cur], [label, cls] = status(cur), locked = P.approved[cur];
+  const missing = s.deps.filter(d => !P.sections[d].trim()).map(d => SEC[d].title);
+  $("#main").innerHTML = `
+  <section class="row" style="align-items:end">
+    <div class="grow"><h1>Review each section</h1>
+      <p class="lede">Edit the text, ask the AI to improve it, then click <b>Save</b>. Word and PDF export unlock when all ${SECTIONS.length} sections are saved.</p></div>
+  </section>
+  ${allSaved() ? `<div class="notice ok row"><span class="grow">All sections are saved. Word and PDF export is unlocked.</span><button class="btn primary" type="button" id="toExport">Go to Review &amp; Export</button></div>`
+    : `<div class="card" style="padding:14px 18px;gap:8px"><div class="row" style="font-size:14px"><span class="grow"><b>${n} of ${SECTIONS.length}</b> sections saved</span><span style="color:var(--muted)">Export unlocks at ${SECTIONS.length}/${SECTIONS.length}</span></div><div class="progress"><i style="width:${n / SECTIONS.length * 100}%"></i></div></div>`}
+  <div class="ws">
+    <nav class="seclist" aria-label="Sections">
+      ${SECTIONS.map((x, i) => { const [l, c] = status(x.id); return `<button type="button" data-id="${x.id}" data-s="${c}" aria-current="${x.id === cur}"><span class="t">${i + 1}. ${esc(x.title)}</span><span class="s">${l}</span></button>`; }).join("")}
+    </nav>
+    <div class="card">
+      <div class="row"><h2 class="grow">${SECTIONS.indexOf(s) + 1}. ${esc(s.title)}</h2><span class="pill ${cls}" id="pill">${label}</span></div>
+      ${missing.length ? `<div class="notice info" style="font-size:13px">Works best after: ${esc(missing.join(", "))}</div>` : ""}
+      <div class="row">
+        <button class="btn primary" type="button" id="saveBtn" ${locked || !P.sections[cur].trim() ? "disabled" : ""}>Save</button>
+        <button class="btn" type="button" id="genBtn" ${locked ? "disabled" : ""}>${P.sections[cur].trim() ? "Regenerate" : "Generate"}</button>
+        <button class="btn" type="button" id="undoBtn" ${locked || !(history[cur] || []).length ? "disabled" : ""}>Undo${(history[cur] || []).length ? " (" + history[cur].length + ")" : ""}</button>
+        <span class="grow"></span>
+        ${locked ? `<button class="btn" type="button" id="reopenBtn">Unlock to edit</button>`
+                 : `<button class="btn" type="button" id="apprBtn" ${!P.sections[cur].trim() ? "disabled" : ""} title="Save and lock this section">Approve &amp; lock</button>`}
+      </div>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" aria-selected="${tab === "edit"}" data-t="edit">Edit</button>
+        <button type="button" role="tab" aria-selected="${tab === "preview"}" data-t="preview">Preview</button>
+      </div>
+      <div id="tabBody"></div>
+      <details class="improve" ${locked ? "" : ""}>
+        <summary>Improve with AI</summary>
+        <div style="display:grid;gap:10px;margin-top:10px">
+          <div class="row">${Object.keys(PRESETS).map(k => `<button class="btn" type="button" data-p="${esc(k)}" ${locked || !P.sections[cur].trim() ? "disabled" : ""}>${esc(k)}</button>`).join("")}</div>
+          <div class="row"><input type="text" id="impTxt" class="grow" style="flex:1;min-width:220px" placeholder="Or say what to change, e.g. add a negative scenario for each story; use RBI terminology">
+          <button class="btn primary" type="button" id="impGo" ${locked || !P.sections[cur].trim() ? "disabled" : ""}>Apply</button></div>
+        </div>
+      </details>
+    </div>
+  </div>`;
+  const te = $("#toExport"); if (te) te.onclick = () => go("export");
+  document.querySelectorAll(".seclist button").forEach(b => b.onclick = () => { cur = b.dataset.id; renderSections(); });
+  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { tab = b.dataset.t; renderSections(); });
+  renderTab();
+  $("#saveBtn").onclick = () => { P.saved[cur] = P.sections[cur]; persist(); toast("Section saved.", "ok", 2500); nextUnsaved(); };
+  $("#genBtn").onclick = async () => { if (await runGeneration([cur])) toast("New draft ready. Click Undo to go back.", "ok"); renderSections(); };
+  $("#undoBtn").onclick = () => { const h = history[cur]; if (h && h.length) { P.sections[cur] = h.pop(); persistSoon(); renderSections(); } };
+  const ap = $("#apprBtn"); if (ap) ap.onclick = () => { P.saved[cur] = P.sections[cur]; P.approved[cur] = true; persist(); nextUnsaved(); };
+  const ro = $("#reopenBtn"); if (ro) ro.onclick = () => { P.approved[cur] = false; persist(); renderSections(); };
+  document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => improve(PRESETS[b.dataset.p]));
+  $("#impGo").onclick = () => { const t = $("#impTxt").value.trim(); if (t) improve(t); else toast("Type what you'd like changed.", "warn"); };
+  renderRail();
+}
+function nextUnsaved() {
+  const nxt = SECTIONS.find(s => !isSaved(s.id));
+  if (nxt) cur = nxt.id;
+  renderSections();
+}
+function renderTab() {
+  const locked = P.approved[cur];
+  if (tab === "edit") {
+    $("#tabBody").innerHTML = `<textarea id="editor" aria-label="Section text (Markdown)" ${locked ? "readonly" : ""} placeholder="Click Generate, or write your own content here.">${esc(P.sections[cur])}</textarea>
+      ${locked ? `<div style="font-size:13px;color:var(--muted)">This section is approved and locked. Click Unlock to edit.</div>` : ""}`;
+    $("#editor").oninput = e => {
+      P.sections[cur] = e.target.value; const [l, c] = status(cur);
+      $("#pill").className = "pill " + c; $("#pill").textContent = l;
+      $("#saveBtn").disabled = !e.target.value.trim();
+      const b = document.querySelector(`.seclist button[data-id="${cur}"]`); b.dataset.s = c; b.querySelector(".s").textContent = l;
+      persistSoon();
+    };
+  } else {
+    $("#tabBody").innerHTML = `<div class="md">${P.sections[cur].trim() ? marked.parse(P.sections[cur]) : "<p><i>Nothing yet.</i></p>"}</div>`;
+  }
+}
+async function improve(instruction) {
+  if (busy) return; busy = true;
+  const pane = $("#tabBody"); tab = "edit"; renderTab();
+  const ed = $("#editor"); ed.readOnly = true;
+  const before = P.sections[cur];
+  try {
+    const out = await ask(`${SYSTEM}\n\nImprove the following section of a BFSI project document.\nSection: ${SEC[cur].title}\nUser instruction: ${instruction}\nKeep Markdown formatting (## / ### headings, tables, \`\`\`sql / \`\`\`gherkin fences). Return ONLY the full improved section.\n\n=== CURRENT SECTION ===\n${before}`,
+      t => { ed.value = t; ed.scrollTop = ed.scrollHeight; });
+    P.sections[cur] = before; setSection(cur, out); P.approved[cur] = false;
+    toast("Improved. Not happy with it? Click Undo.", "ok");
+  } catch (e) { toast(aiError(e), "bad"); }
+  busy = false; persistSoon(); renderSections(); void pane;
+}
+
+/* ====================================================================== view: diagrams */
+let mermaidReady = false, renderSeq = 0;
+function initMermaid() {
+  if (mermaidReady || !window.mermaid) return;
+  mermaid.initialize({startOnLoad: false, securityLevel: "strict", theme: "default", htmlLabels: false,
+    flowchart: {htmlLabels: false}, fontFamily: "Arial, sans-serif"});
+  mermaidReady = true;
+}
+async function mermaidSvg(code) {
+  initMermaid();
+  const id = "m" + (++renderSeq);
+  try { const {svg} = await mermaid.render(id, code); return {svg}; }
+  catch (e) { document.getElementById("d" + id)?.remove(); return {error: (e && e.message || String(e)).split("\n")[0]}; }
+}
+function renderDiagrams() {
+  $("#main").innerHTML = `
+  <section><h1>Diagrams</h1>
+    <p class="lede">Pick the diagrams your HLD needs. The AI draws them from your saved sections. Each diagram is plain Mermaid code: edit it and the preview updates, or tell the AI what to change. Choose which section each one appears in.</p></section>
+  <div class="card">
+    <h2>Add diagrams</h2>
+    <div class="checks" id="dTypes">${Object.keys(DIAGRAMS).map(k => `<label><input type="checkbox" value="${esc(k)}"><span>${esc(k)}</span></label>`).join("")}</div>
+    <label class="f" for="dCustom">Custom diagram <small>Optional. Describe anything else, e.g. a swimlane of the month-end sign-off between Ops, Credit Reporting and Compliance.</small>
+      <input type="text" id="dCustom" placeholder="Describe the diagram you need"></label>
+    <div class="row"><button class="btn primary" type="button" id="dAdd">Create diagrams</button>
+      ${SECTIONS.some(s => P.sections[s.id].trim()) ? "" : `<span style="color:var(--muted);font-size:14px">Tip: draft the sections first; diagrams are drawn from them.</span>`}</div>
+  </div>
+  <div id="dList" style="display:grid;gap:16px">${P.diagrams.length ? "" : `<div class="notice info">No diagrams yet.</div>`}</div>`;
+  $("#dAdd").onclick = addDiagrams;
+  P.diagrams.forEach(d => $("#dList").appendChild(diagramCard(d)));
+}
+function diagramCard(d) {
+  const el = document.createElement("div"); el.className = "card";
+  const opts = SECTIONS.map(s => `<option value="${s.id}" ${d.attach === s.id ? "selected" : ""}>${esc(s.title)}</option>`).join("") +
+    `<option value="appendix" ${d.attach === "appendix" ? "selected" : ""}>Appendix: Diagrams</option>`;
+  el.innerHTML = `
+    <div class="grid2">
+      <label class="f">Title / caption<input type="text" class="dt" value="${esc(d.title)}"></label>
+      <div class="row" style="align-items:end"><label class="f grow">Place in section<select class="da">${opts}</select></label>
+        <label class="row" style="font-size:14px;padding-bottom:8px"><input type="checkbox" class="di" ${d.include ? "checked" : ""}> Include</label></div>
+    </div>
+    <div class="dgrid">
+      <label class="f">Mermaid code<textarea class="dc" rows="16">${esc(d.code)}</textarea></label>
+      <div><div class="dprev" aria-label="Diagram preview"></div><div class="derr" style="font-size:13px;color:var(--bad);margin-top:6px"></div></div>
+    </div>
+    <div class="row">
+      <input type="text" class="dfix grow" style="flex:1;min-width:220px" placeholder="Tell the AI what to change (leave blank to fix errors and tidy the layout)">
+      <button class="btn" type="button" data-a="fix">Change with AI</button>
+      <button class="btn ghost" type="button" data-a="del">Delete</button>
+    </div>`;
+  const prev = el.querySelector(".dprev"), errEl = el.querySelector(".derr");
+  const draw = async () => { const r = await mermaidSvg(d.code); if (r.svg) { prev.innerHTML = r.svg; errEl.textContent = ""; } else errEl.textContent = "Diagram syntax error: " + r.error; };
+  let t; el.querySelector(".dc").oninput = e => { d.code = e.target.value; clearTimeout(t); t = setTimeout(draw, 500); persistSoon(); };
+  el.querySelector(".dt").oninput = e => { d.title = e.target.value; persistSoon(); };
+  el.querySelector(".da").onchange = e => { d.attach = e.target.value; persistSoon(); };
+  el.querySelector(".di").onchange = e => { d.include = e.target.checked; persistSoon(); };
+  el.querySelector('[data-a="del"]').onclick = () => { P.diagrams = P.diagrams.filter(x => x !== d); persist(); renderDiagrams(); };
+  el.querySelector('[data-a="fix"]').onclick = async ev => {
+    const b = ev.currentTarget; if (busy) return; busy = true; b.disabled = true; b.textContent = "Working...";
+    const instr = el.querySelector(".dfix").value.trim() || "Fix any Mermaid syntax errors and improve the layout and readability.";
+    try { d.code = await ask(`Update this Mermaid diagram.\nInstruction: ${instr}\nRules: return ONLY valid Mermaid code, no fences or explanation. No HTML tags or emojis. Quote labels that contain special characters.\n\n${d.code}`);
+      el.querySelector(".dc").value = d.code; await draw(); persist(); }
+    catch (e) { toast(aiError(e), "bad"); }
+    busy = false; b.disabled = false; b.textContent = "Change with AI";
+  };
+  draw();
+  return el;
+}
+async function addDiagrams() {
+  const types = [...document.querySelectorAll("#dTypes input:checked")].map(i => i.value);
+  const custom = $("#dCustom").value.trim();
+  const jobs = types.map(t => [t, ""]); if (custom) jobs.push([custom, custom]);
+  if (!jobs.length) return toast("Choose at least one diagram type or describe a custom one.", "warn");
+  if (busy) return; busy = true;
+  const b = $("#dAdd"); b.disabled = true;
+  for (let i = 0; i < jobs.length; i++) {
+    const [type, extra] = jobs[i]; b.textContent = `Drawing ${i + 1} of ${jobs.length}...`;
+    const def = DIAGRAMS[type];
+    let src = ""; (def ? def.src : SECTIONS.map(s => s.id)).forEach(id => { if (P.sections[id].trim()) src += `\n=== ${SEC[id].title} ===\n${P.sections[id]}\n`; });
+    if (!src) src = `\n=== RAW INPUT ===\n${combinedInput()}\n`;
+    try {
+      const code = await ask(`Create a Mermaid diagram: ${type}.\nStart with: ${def ? def.start : "the most suitable Mermaid diagram type"}\nGuidance: ${def ? def.guide : ""}\nAdditional instruction: ${extra || "None"}\nRules:\n- Return ONLY valid Mermaid code. No code fences, no explanation.\n- Keep it readable: at most about 20 nodes, short labels. Wrap labels containing special characters in double quotes.\n- No HTML tags, no emojis, no parentheses inside unquoted labels.\n\nSource material:${src}`);
+      P.diagrams.push({id: "d" + Date.now().toString(36) + i, type, title: extra ? extra.slice(0, 70) : type, code, attach: def ? def.attach : "appendix", include: true});
+    } catch (e) { toast(`${type}: ${aiError(e)}`, "bad"); break; }
+  }
+  busy = false; await persist(); renderDiagrams(); renderRail();
+}
+
+/* ====================================================================== view: export */
+function renderExport() {
+  const ready = allSaved(), pending = SECTIONS.filter(s => !isSaved(s.id));
+  $("#main").innerHTML = `
+  <section><h1>Review &amp; export</h1>
+    <p class="lede">Check the whole document, then download it as Word or PDF. Both include a cover page, document control, contents, styled tables and numbered figures.</p></section>
+  <div class="card">
+    <table class="status"><thead><tr><th>#</th><th>Section</th><th>Status</th><th>Diagrams</th></tr></thead><tbody>
+      ${SECTIONS.map((s, i) => { const [l, c] = status(s.id); return `<tr><td>${i + 1}</td><td><a href="#" data-go="${s.id}">${esc(s.title)}</a></td><td><span class="pill ${c}">${l}</span></td><td>${P.diagrams.filter(d => d.include && d.attach === s.id).length || "–"}</td></tr>`; }).join("")}
+    </tbody></table>
+    ${ready ? `<div class="notice ok">All sections are saved. Your document is ready to download.</div>`
+            : `<div class="notice warn">Export unlocks once every section is saved. Still to review and save: ${esc(pending.map(s => s.title).join(", "))}.</div>`}
+    <div class="row">
+      <button class="btn primary" type="button" id="dlDocx" ${ready ? "" : "disabled"}>Download Word (.docx)</button>
+      <button class="btn primary" type="button" id="dlPdf" ${ready ? "" : "disabled"}>Download PDF</button>
+      <span id="dlMsg" style="font-size:14px;color:var(--muted)"></span>
+    </div>
+    <div style="font-size:13px;color:var(--muted)">In Word, click <b>Yes</b> when asked to update fields; that fills in the table of contents.</div>
+  </div>
+  <div class="docprev md" id="docPrev"></div>`;
+  document.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); cur = a.dataset.go; tab = "edit"; go("sections"); });
+  $("#dlDocx").onclick = () => doExport("docx");
+  $("#dlPdf").onclick = () => doExport("pdf");
+  buildPreview();
+}
+async function buildPreview() {
+  const box = $("#docPrev"); let html = "", n = 0;
+  for (const s of SECTIONS) {
+    if (!P.sections[s.id].trim()) continue; n++;
+    html += `<h1 class="sec">${n}. ${esc(s.title)}</h1>` + marked.parse(P.sections[s.id]);
+    for (const d of P.diagrams.filter(d => d.include && d.attach === s.id)) {
+      const r = await mermaidSvg(d.code); html += `<figure>${r.svg || `<pre>${esc(d.code)}</pre>`}<figcaption>${esc(d.title)}</figcaption></figure>`;
+    }
+  }
+  const app = P.diagrams.filter(d => d.include && d.attach === "appendix");
+  if (app.length) { html += `<h1 class="sec">Appendix A. Diagrams</h1>`; for (const d of app) { const r = await mermaidSvg(d.code); html += `<figure>${r.svg || ""}<figcaption>${esc(d.title)}</figcaption></figure>`; } }
+  if (box) box.innerHTML = n ? html : `<p><i>Nothing to preview yet.</i></p>`;
+}
+
+/* ---------- markdown → blocks (shared by Word and PDF) */
+function parseMd(md) {
+  const lines = md.replace(/\r\n/g, "\n").split("\n"), B = []; let i = 0;
+  while (i < lines.length) {
+    const line = lines[i], s = line.trim();
+    if (!s) { i++; continue; }
+    if (s.startsWith("```")) { const lang = s.slice(3).trim(), code = []; i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) code.push(lines[i++]);
+      B.push({type: "code", lang, text: code.join("\n")}); i++; continue; }
+    let m = s.match(/^(#{1,6})\s+(.*)/);
+    if (m) { B.push({type: "heading", level: m[1].length, text: m[2].replace(/\*\*/g, "")}); i++; continue; }
+    if (s.startsWith("|")) { const rows = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        const cells = lines[i].trim().replace(/^\||\|$/g, "").split(/(?<!\\)\|/).map(c => c.trim());
+        if (!cells.every(c => !c || /^:?-{2,}:?$/.test(c))) rows.push(cells); i++; }
+      if (rows.length) { const w = Math.max(...rows.map(r => r.length)); rows.forEach(r => { while (r.length < w) r.push(""); }); B.push({type: "table", rows}); }
+      continue; }
+    m = line.match(/^(\s*)[-*+]\s+(.*)/);
+    if (m) { B.push({type: "bullet", level: Math.min(1, Math.floor(m[1].length / 2)), text: m[2]}); i++; continue; }
+    m = line.match(/^(\s*)(\d+)[.)]\s+(.*)/);
+    if (m) { B.push({type: "number", level: 0, text: m[3]}); i++; continue; }
+    B.push({type: "para", text: s}); i++;
+  }
+  return B;
+}
+function runs(text) {
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*)/).filter(Boolean).map(p => {
+    if (/^\*\*.+\*\*$/.test(p)) return {t: p.slice(2, -2), b: true};
+    if (/^`.+`$/.test(p)) return {t: p.slice(1, -1), code: true};
+    if (/^\*.+\*$/.test(p) && p.length > 2) return {t: p.slice(1, -1), i: true};
+    return {t: p};
+  });
+}
+function colWidths(rows, total, charW, pad) {
+  const n = rows[0].length, minW = [], weight = [];
+  for (let c = 0; c < n; c++) {
+    const words = rows.flatMap(r => (r[c] || "").replace(/\*\*/g, "").split(/\s+/)).filter(Boolean);
+    const longest = Math.max(3, ...words.map(w => w.length));
+    minW.push(Math.min(longest, 18) * charW + pad);
+    weight.push(Math.min(Math.max(...rows.map(r => (r[c] || "").length)), 80) + 1);
+  }
+  const base = minW.reduce((a, b) => a + b, 0);
+  if (base >= total) return minW.map(m => total * m / base);
+  const extra = total - base, tot = weight.reduce((a, b) => a + b, 0);
+  return minW.map((m, k) => m + extra * weight[k] / tot);
+}
+function docSections() {
+  const out = []; let n = 0;
+  const inc = P.diagrams.filter(d => d.include && d.code.trim());
+  SECTIONS.forEach(s => { if (!P.sections[s.id].trim()) return; n++;
+    out.push({title: `${n}. ${s.title}`, content: P.sections[s.id], diagrams: inc.filter(d => d.attach === s.id)}); });
+  const app = inc.filter(d => !SECTIONS.some(s => s.id === d.attach && P.sections[s.id].trim()));
+  if (app.length) out.push({title: "Appendix A. Diagrams", content: "", diagrams: app});
+  return out;
+}
+const docStatus = () => SECTIONS.every(s => P.approved[s.id]) ? "Final - all sections approved" : "Final - all sections reviewed";
+const today = () => new Date().toLocaleDateString("en-GB", {day: "2-digit", month: "long", year: "numeric"});
+const todayShort = () => new Date().toLocaleDateString("en-GB");
+
+async function svgToPng(svgText) {
+  const doc = new DOMParser().parseFromString(svgText, "image/svg+xml"), svg = doc.documentElement;
+  const vb = (svg.getAttribute("viewBox") || "0 0 800 600").split(/[\s,]+/).map(Number);
+  const w = vb[2] || 800, h = vb[3] || 600, scale = 2;
+  svg.setAttribute("width", w); svg.setAttribute("height", h); svg.removeAttribute("style");
+  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  const src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+  const img = new Image(); await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = src; });
+  const c = document.createElement("canvas"); c.width = Math.ceil(w * scale); c.height = Math.ceil(h * scale);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+  return {dataUrl: c.toDataURL("image/png"), w, h};
+}
+async function diagramImages(secs) {
+  const warn = [];
+  for (const s of secs) for (const d of s.diagrams) {
+    const r = await mermaidSvg(d.code);
+    if (!r.svg) { warn.push(d.title); d._img = null; continue; }
+    try { d._img = await svgToPng(r.svg); } catch (_) { d._img = null; warn.push(d.title); }
+  }
+  return warn;
+}
+
+async function doExport(kind) {
+  const msg = $("#dlMsg"); msg.textContent = "Building your document...";
+  const secs = docSections().map(s => ({...s, diagrams: s.diagrams.map(d => ({...d}))}));
+  try {
+    const warn = await diagramImages(secs);
+    const blob = kind === "docx" ? await buildDocx(secs) : await buildPdf(secs);
+    const filename = `${slug(P.meta.project_name)}_HLD.${kind}`;
+    msg.textContent = warn.length ? `Some diagrams have syntax errors and were included as code: ${warn.join(", ")}.` : "";
+    if (!downloads) { msg.textContent = "Downloads aren't available in this view. Open the page on claude.ai."; return; }
+    await downloads.save({filename, data: blob});
+    toast(`${filename} downloaded.`, "ok");
+  } catch (e) {
+    if (e && e.code === "declined") { msg.textContent = "Download cancelled."; return; }
+    console.error(e); msg.textContent = "Couldn't build the file: " + ((e && e.message) || e);
+  }
+}
+
+/* ---------- Word */
+async function buildDocx(secs) {
+  const D = docx, NAVY = "1F3A5F", m = P.meta, FULL = 9638;
+  const tr = (r, size, extra = {}) => new D.TextRun({text: r.t, bold: r.b || extra.bold, italics: r.i, font: r.code ? "Consolas" : undefined, size, color: extra.color});
+  const para = (text, opts = {}) => new D.Paragraph({...opts, children: runs(text).map(r => tr(r, opts.size))});
+  const cellShade = fill => ({fill, type: D.ShadingType.CLEAR, color: "auto"});
+  const border = {style: D.BorderStyle.SINGLE, size: 4, color: "CBD5E1"};
+  const borders = {top: border, bottom: border, left: border, right: border};
+  const table = rows => {
+    const size = rows[0].length > 5 ? 15 : 18, widths = colWidths(rows, FULL, size / 2 * 11.5, 140).map(Math.floor);
+    return new D.Table({width: {size: FULL, type: D.WidthType.DXA}, columnWidths: widths, layout: D.TableLayoutType.FIXED,
+      rows: rows.map((r, ri) => new D.TableRow({tableHeader: ri === 0, children: r.map((c, ci) => new D.TableCell({
+        width: {size: widths[ci], type: D.WidthType.DXA}, borders,
+        shading: ri === 0 ? cellShade(NAVY) : (ri % 2 === 0 ? cellShade("F5F7FA") : undefined),
+        margins: {top: 40, bottom: 40, left: 80, right: 80},
+        children: [new D.Paragraph({children: runs(c).map(x => tr(x, size, ri === 0 ? {bold: true, color: "FFFFFF"} : {}))})]}))}))});
+  };
+  const codeBox = text => new D.Table({width: {size: FULL, type: D.WidthType.DXA}, columnWidths: [FULL],
+    rows: [new D.TableRow({children: [new D.TableCell({width: {size: FULL, type: D.WidthType.DXA}, borders, shading: cellShade("F3F4F6"),
+      margins: {top: 80, bottom: 80, left: 120, right: 120},
+      children: text.split("\n").map(l => new D.Paragraph({spacing: {after: 0}, children: [new D.TextRun({text: l || " ", font: "Consolas", size: 16})]}))})]})]});
+  const kv = (k, v) => new D.Paragraph({spacing: {after: 80}, children: [new D.TextRun({text: k + ": ", bold: true}), new D.TextRun(v)]});
+
+  const children = [];
+  // cover
+  for (let i = 0; i < 6; i++) children.push(new D.Paragraph(""));
+  children.push(new D.Paragraph({children: [new D.TextRun({text: m.project_name || "Untitled Project", bold: true, size: 56, color: NAVY})]}));
+  children.push(new D.Paragraph({spacing: {after: 400}, children: [new D.TextRun({text: m.doc_title || "Business Requirements & High-Level Design", size: 32, color: "4B5563"})]}));
+  [["Client / Business unit", m.client], ["Prepared by", m.author], ["Version", m.version || "0.1"], ["Date", today()], ["Status", docStatus()]]
+    .filter(x => x[1]).forEach(([k, v]) => children.push(kv(k, v)));
+  children.push(new D.Paragraph({children: [new D.PageBreak()]}));
+  // document control
+  children.push(new D.Paragraph({heading: D.HeadingLevel.HEADING_1, text: "Document Control"}));
+  children.push(table([["Version", "Date", "Author", "Status", "Change Description"], [m.version || "0.1", todayShort(), m.author || "", docStatus(), "Drafted with BA Copilot; reviewed and saved by author"]]));
+  children.push(new D.Paragraph({heading: D.HeadingLevel.HEADING_2, text: "Section Review Status", spacing: {before: 300}}));
+  children.push(table([["Section", "Status"], ...SECTIONS.map(s => [s.title, status(s.id)[0]])]));
+  children.push(new D.Paragraph({children: [new D.PageBreak()]}));
+  children.push(new D.Paragraph({heading: D.HeadingLevel.HEADING_1, text: "Contents"}));
+  children.push(new D.TableOfContents("Contents", {hyperlink: true, headingStyleRange: "1-2"}));
+  // body
+  let fig = 0, listInst = 0;
+  secs.forEach(s => {
+    children.push(new D.Paragraph({children: [new D.PageBreak()]}));
+    children.push(new D.Paragraph({heading: D.HeadingLevel.HEADING_1, text: s.title}));
+    let prev = null;
+    parseMd(s.content).forEach(b => {
+      if (b.type === "number" && prev !== "number") listInst++;
+      prev = b.type;
+      if (b.type === "heading") children.push(new D.Paragraph({heading: b.level <= 2 ? D.HeadingLevel.HEADING_2 : D.HeadingLevel.HEADING_3, text: b.text}));
+      else if (b.type === "para") children.push(para(b.text, {spacing: {after: 100}}));
+      else if (b.type === "bullet") children.push(para(b.text, {numbering: {reference: "bul", level: b.level}, spacing: {after: 60}}));
+      else if (b.type === "number") children.push(para(b.text, {numbering: {reference: "num", level: 0, instance: listInst}, spacing: {after: 60}}));
+      else if (b.type === "code") { children.push(codeBox(b.text)); children.push(new D.Paragraph("")); }
+      else if (b.type === "table") { children.push(table(b.rows)); children.push(new D.Paragraph("")); }
+    });
+    s.diagrams.forEach(d => {
+      fig++;
+      if (d._img) {
+        let w = 620, h = d._img.h * (620 / d._img.w);
+        if (d._img.w < 420) { w = d._img.w * 1.3; h = d._img.h * 1.3; }
+        if (h > 760) { w = w * 760 / h; h = 760; }
+        const bin = Uint8Array.from(atob(d._img.dataUrl.split(",")[1]), c => c.charCodeAt(0));
+        children.push(new D.Paragraph({alignment: D.AlignmentType.CENTER, spacing: {before: 200}, children: [new D.ImageRun({type: "png", data: bin, transformation: {width: Math.round(w), height: Math.round(h)}})]}));
+      } else children.push(codeBox(d.code));
+      children.push(new D.Paragraph({alignment: D.AlignmentType.CENTER, spacing: {after: 200}, children: [new D.TextRun({text: `Figure ${fig}: ${d.title}`, italics: true, size: 18})]}));
+    });
+  });
+  const lvl = (level, fmt, text, indent) => ({level, format: fmt, text, alignment: D.AlignmentType.LEFT, style: {paragraph: {indent: {left: indent, hanging: 280}}}});
+  const doc = new D.Document({
+    creator: m.author || "BA Copilot", title: m.project_name || "Project Document",
+    features: {updateFields: true},
+    styles: {default: {document: {run: {font: "Calibri", size: 21}},
+      heading1: {run: {font: "Calibri", size: 32, bold: true, color: NAVY}, paragraph: {spacing: {before: 240, after: 160}}},
+      heading2: {run: {font: "Calibri", size: 26, bold: true, color: NAVY}, paragraph: {spacing: {before: 240, after: 100}}},
+      heading3: {run: {font: "Calibri", size: 23, bold: true, color: NAVY}, paragraph: {spacing: {before: 180, after: 80}}}}},
+    numbering: {config: [
+      {reference: "bul", levels: [lvl(0, D.LevelFormat.BULLET, "•", 360), lvl(1, D.LevelFormat.BULLET, "–", 720)]},
+      {reference: "num", levels: [lvl(0, D.LevelFormat.DECIMAL, "%1.", 360)]}]},
+    sections: [{
+      properties: {titlePage: true, page: {size: {width: 11906, height: 16838}, margin: {top: 1134, bottom: 1134, left: 1134, right: 1134}}},
+      headers: {first: new D.Header({children: []}), default: new D.Header({children: [new D.Paragraph({children: [new D.TextRun({text: `${m.project_name || ""}  |  ${m.client || ""}`, size: 16, color: "6B7280"})]})]})},
+      footers: {first: new D.Footer({children: []}), default: new D.Footer({children: [new D.Paragraph({alignment: D.AlignmentType.RIGHT, children: [new D.TextRun({children: ["Page ", D.PageNumber.CURRENT], size: 16, color: "6B7280"})]})]})},
+      children}]
+  });
+  return await D.Packer.toBlob(doc);
+}
+
+/* ---------- PDF */
+async function buildPdf(secs) {
+  const m = P.meta, NAVY = "#1F3A5F", AVAIL = 515;
+  const txt = (text, extra = {}) => ({text: runs(text).map(r => ({text: r.t, bold: r.b, italics: r.i, background: r.code ? "#EEF1F5" : undefined})), ...extra});
+  const table = rows => {
+    const fs = rows[0].length > 6 ? 7.5 : 8.5, widths = colWidths(rows, AVAIL - rows[0].length * 8.5, fs * 0.52, 2);
+    return {margin: [0, 2, 0, 10], table: {headerRows: 1, widths, dontBreakRows: false,
+      body: rows.map((r, ri) => r.map(c => txt(c, {fontSize: fs, bold: ri === 0, color: ri === 0 ? "#FFFFFF" : undefined, fillColor: ri === 0 ? NAVY : (ri % 2 === 0 ? "#F5F7FA" : undefined)})))},
+      layout: {hLineColor: "#CBD5E1", vLineColor: "#CBD5E1", hLineWidth: () => 0.5, vLineWidth: () => 0.5, paddingLeft: () => 4, paddingRight: () => 4, paddingTop: () => 2.5, paddingBottom: () => 2.5}};
+  };
+  const code = text => ({margin: [0, 2, 0, 10], table: {widths: ["*"], body: [[{text: text, fontSize: 7.6, preserveLeadingSpaces: true, color: "#1F2937", fillColor: "#F3F4F6", lineHeight: 1.15}]]},
+    layout: {hLineColor: "#E5E7EB", vLineColor: "#E5E7EB", paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 6, paddingBottom: () => 6}});
+  const content = [];
+  // cover
+  content.push({text: m.project_name || "Untitled Project", style: "title", margin: [0, 200, 0, 6]});
+  content.push({text: m.doc_title || "Business Requirements & High-Level Design", fontSize: 15, color: "#4B5563", margin: [0, 0, 0, 30]});
+  [["Client / Business unit", m.client], ["Prepared by", m.author], ["Version", m.version || "0.1"], ["Date", today()], ["Status", docStatus()]]
+    .filter(x => x[1]).forEach(([k, v]) => content.push({text: [{text: k + ": ", bold: true}, v], margin: [0, 0, 0, 4]}));
+  content.push({text: "Document Control", style: "h1", pageBreak: "before"});
+  content.push(table([["Version", "Date", "Author", "Status", "Change Description"], [m.version || "0.1", todayShort(), m.author || "", docStatus(), "Drafted with BA Copilot; reviewed and saved by author"]]));
+  content.push({text: "Section Review Status", style: "h2"});
+  content.push(table([["Section", "Status"], ...SECTIONS.map(s => [s.title, status(s.id)[0]])]));
+  content.push({toc: {title: {text: "Contents", style: "h1"}, numberStyle: {fontSize: 9.5}, textStyle: {fontSize: 9.5}}, pageBreak: "before"});
+  let fig = 0;
+  secs.forEach(s => {
+    content.push({text: s.title, style: "h1", tocItem: true, tocStyle: {bold: true}, tocMargin: [0, 6, 0, 0], pageBreak: "before"});
+    const blocks = parseMd(s.content); let k = 0;
+    while (k < blocks.length) {
+      const b = blocks[k];
+      if (b.type === "bullet" || b.type === "number") {
+        const items = []; const t = b.type;
+        while (k < blocks.length && blocks[k].type === t) { items.push(txt(blocks[k].text, {margin: [blocks[k].level * 12, 0, 0, 2]})); k++; }
+        content.push(t === "bullet" ? {ul: items, margin: [0, 0, 0, 8]} : {ol: items, margin: [0, 0, 0, 8]}); continue;
+      }
+      if (b.type === "heading") content.push({text: b.text, style: b.level <= 2 ? "h2" : "h3", tocItem: b.level <= 2, tocMargin: [14, 0, 0, 0]});
+      else if (b.type === "para") content.push(txt(b.text, {margin: [0, 0, 0, 5]}));
+      else if (b.type === "code") content.push(code(b.text));
+      else if (b.type === "table") content.push(table(b.rows));
+      k++;
+    }
+    s.diagrams.forEach(d => {
+      fig++;
+      if (d._img) {
+        let w = Math.min(AVAIL, d._img.w < 300 ? d._img.w * 1.3 : AVAIL), h = d._img.h * w / d._img.w;
+        if (h > 640) { w = w * 640 / h; h = 640; }
+        content.push({stack: [{image: d._img.dataUrl, width: w, alignment: "center", margin: [0, 8, 0, 4]},
+          {text: `Figure ${fig}: ${d.title}`, italics: true, fontSize: 8.5, color: "#4B5563", alignment: "center", margin: [0, 0, 0, 10]}], unbreakable: true});
+      } else { content.push(code(d.code)); content.push({text: `Figure ${fig}: ${d.title} (Mermaid source)`, italics: true, fontSize: 8.5, alignment: "center"}); }
+    });
+  });
+  const dd = {
+    pageSize: "A4", pageMargins: [40, 50, 40, 46], content,
+    info: {title: m.project_name || "Project Document", author: m.author || ""},
+    defaultStyle: {fontSize: 9.5, lineHeight: 1.25, color: "#111827"},
+    styles: {title: {fontSize: 26, bold: true, color: NAVY}, h1: {fontSize: 16, bold: true, color: NAVY, margin: [0, 0, 0, 10]},
+      h2: {fontSize: 12.5, bold: true, color: NAVY, margin: [0, 10, 0, 5]}, h3: {fontSize: 10.5, bold: true, color: NAVY, margin: [0, 8, 0, 4]}},
+    header: (p) => p === 1 ? null : {text: `${m.project_name || ""}  |  ${m.client || ""}`, fontSize: 7.5, color: "#6B7280", margin: [40, 22, 40, 0]},
+    footer: (p) => p === 1 ? null : {text: `Page ${p}`, alignment: "right", fontSize: 7.5, color: "#6B7280", margin: [40, 14, 40, 0]},
+  };
+  return await new Promise((res, rej) => { try { pdfMake.createPdf(dd).getBlob(res); } catch (e) { rej(e); } });
+}
+
+/* ====================================================================== projects dialog */
+async function openProjects() {
+  const ov = document.createElement("div"); ov.className = "overlay";
+  ov.innerHTML = `<div class="box" role="dialog" aria-label="Projects"><div class="row"><h2 class="grow">Projects</h2><button class="btn ghost" type="button" data-x>Close</button></div>
+    <p class="lede" style="margin:0">${db && uid ? "Your projects are saved to your account automatically and are private to you." : "Projects are saved in this browser."}</p>
+    <div id="plist" class="steps">Loading...</div>
+    <div class="row"><button class="btn primary" type="button" data-new>Start a new project</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("[data-x]").onclick = () => ov.remove();
+  ov.onclick = e => { if (e.target === ov) ov.remove(); };
+  ov.querySelector("[data-new]").onclick = async () => { await persist(); P = newProject(); history = {}; pendingFiles = []; ov.remove(); view = "input"; render(); persist(); };
+  const list = await listProjects();
+  ov.querySelector("#plist").innerHTML = list.length ? list.map((p, i) => `<div class="row" style="border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--ink)">
+      <span class="grow"><b>${esc(p.meta?.project_name || "Untitled")}</b><br><span style="color:var(--muted);font-size:12.5px">${p.updated_at ? new Date(p.updated_at).toLocaleString() : ""} · ${SECTIONS.filter(s => (p.saved || {})[s.id] && (p.saved || {})[s.id] === (p.sections || {})[s.id]).length}/8 saved</span></span>
+      <button class="btn" type="button" data-open="${i}" ${p.id === P.id ? "disabled" : ""}>${p.id === P.id ? "Open now" : "Open"}</button></div>`).join("") : "No saved projects yet.";
+  ov.querySelectorAll("[data-open]").forEach(b => b.onclick = async () => { await persist(); loadProject(list[+b.dataset.open]); ov.remove(); go(SECTIONS.some(s => P.sections[s.id].trim()) ? "sections" : "input"); });
+}
+
+/* ====================================================================== boot */
+$("#projBtn").onclick = openProjects;
+// Open in a realistic working state: last project if any, else the example input.
+try { const last = JSON.parse(localStorage.getItem("bacopilot:last")); if (last && last.meta) loadProject(last); } catch (_) {}
+if (!P.meta.project_name && !P.notes) { P.meta = {...SAMPLE.meta}; P.notes = SAMPLE.notes; P._sample = true; }
+render();
+
+(async () => {
+  if (!window.claude || !window.claude.use) { toast("Open this page on claude.ai to use the AI, saving and downloads.", "warn", 9000); return; }
+  const [s, d, dbx, u] = await Promise.all(["sample", "downloads", "db", "user"].map(n => window.claude.use(n).catch(() => null)));
+  sample = s; downloads = d; db = dbx;
+  if (u) { try { uid = await u.id(); } catch (_) {} }
+  if (!sample) toast("The AI engine isn't available in this view. Open the page on claude.ai while signed in.", "warn", 9000);
+  if (db && uid) {
+    try { const list = await listProjects();
+      if (list.length && (P._sample || !P.updated_at || (list[0].updated_at > P.updated_at))) { loadProject(list[0]); }
+      $("#saveState").textContent = "Saved to your projects";
+    } catch (_) {}
+  }
+})();
+</script>
+</body>
+</html>

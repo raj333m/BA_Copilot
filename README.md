@@ -58,6 +58,10 @@ The recorder works with any provider:
 
 On Windows you can also press **Win + H** inside the notes box to use Windows voice typing.
 
+## 🌐 Web version (no install)
+
+`web/index.html` is a single-page version of BA Copilot hosted on claude.ai. It uses Claude as the AI engine, so you need no Python and no API key. It has the same flow: upload, paste or dictate → Submit / Reset → review and save each section → diagrams → Word / PDF download (unlocked once every section is saved).
+
 ## 🚀 Quick start
 
 ```bash
