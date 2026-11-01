@@ -6,7 +6,7 @@
 <title>BA Copilot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/docx@9.5.1/dist/index.iife.js"></script>
@@ -16,180 +16,263 @@
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js"></script>
 <style>
-/* Layout idea: a document workbench. Top bar with a 4-step rail; left list of sections with
-   status stripes, right a working pane. Navy ink + ledger-blue accent, amber/green status. */
+/* Layout idea: an enterprise workbench. Night-navy app bar with a loop-blue accent rule and a 4-step
+   progress rail; a live dashboard strip summarises the document; left section rail, right working pane. */
 :root {
-  --ink: #15233a;
-  --muted: #5b6b82;
-  --paper: #f4f6f9;
-  --panel: #ffffff;
-  --line: #dde3eb;
-  --accent: #1f4e8c;
+  --navy: #0b1b33;          /* app bar, document titles */
+  --accent: #0b5cad;        /* primary actions, links, headings */
+  --accent-pale: #9cc3e6;   /* soft fills, focus halos */
+  --grey: #8a939e;          /* secondary text */
+  --paper: #f3f6fa;         /* page */
+  --panel: #ffffff;         /* cards */
+  --ink: #0b1b33;
+  --muted: #5d6877;
+  --line: #dbe2ea;
+  --soft: #e8f1fa;
   --accent-ink: #ffffff;
-  --accent-soft: #e6eef8;
-  --ok: #1d7a46; --ok-soft: #e3f4ea;
+  --ok: #157347; --ok-soft: #e2f3ea;
   --warn: #9a5b00; --warn-soft: #fdf1dc;
   --bad: #b42318; --bad-soft: #fdecea;
-  --code: #eef1f5;
-  --font-display: "IBM Plex Serif", Georgia, serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --code: #eef2f7;
+  --shadow: 0 1px 2px rgba(11, 27, 51, .06), 0 4px 16px rgba(11, 27, 51, .05);
+  --font-display: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Noto Sans", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", Consolas, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --ink: #e6ecf4; --muted: #9aa8bb; --paper: #0e1622; --panel: #152133; --line: #26354b;
-    --accent: #6ea3e6; --accent-ink: #0b1420; --accent-soft: #1b2d47;
-    --ok: #5fcf8f; --ok-soft: #15301f; --warn: #f0b45a; --warn-soft: #33270f;
-    --bad: #f28b82; --bad-soft: #3a1714; --code: #1b2a3f; color-scheme: dark;
+    --paper: #08111f; --panel: #0f1d33; --ink: #e7eef7; --muted: #9eabbd; --line: #22344f; --soft: #132a48;
+    --accent: #5fa0e6; --accent-ink: #06101e; --accent-pale: #2a5d93; --grey: #8a939e;
+    --ok: #5fcf8f; --ok-soft: #12301f; --warn: #f0b45a; --warn-soft: #33270f; --bad: #f28b82; --bad-soft: #3a1714;
+    --code: #132540; --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --ink: #e6ecf4; --muted: #9aa8bb; --paper: #0e1622; --panel: #152133; --line: #26354b;
-  --accent: #6ea3e6; --accent-ink: #0b1420; --accent-soft: #1b2d47;
-  --ok: #5fcf8f; --ok-soft: #15301f; --warn: #f0b45a; --warn-soft: #33270f;
-  --bad: #f28b82; --bad-soft: #3a1714; --code: #1b2a3f; color-scheme: dark;
+  --paper: #08111f; --panel: #0f1d33; --ink: #e7eef7; --muted: #9eabbd; --line: #22344f; --soft: #132a48;
+  --accent: #5fa0e6; --accent-ink: #06101e; --accent-pale: #2a5d93; --grey: #8a939e;
+  --ok: #5fcf8f; --ok-soft: #12301f; --warn: #f0b45a; --warn-soft: #33270f; --bad: #f28b82; --bad-soft: #3a1714;
+  --code: #132540; --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body { background: var(--paper); color: var(--ink); font: 15px/1.55 var(--font-body); }
 button, input, select, textarea { font: inherit; color: inherit; }
-h1, h2, h3 { text-wrap: balance; margin: 0; }
-h1 { font: 600 26px/1.2 var(--font-display); }
-h2 { font: 600 20px/1.3 var(--font-display); }
-h3 { font: 600 15px/1.4 var(--font-body); }
+h1, h2, h3 { text-wrap: balance; margin: 0; font-family: var(--font-display); }
+h1 { font-weight: 700; font-size: 27px; line-height: 1.2; letter-spacing: -.01em; }
+h2 { font-weight: 700; font-size: 18px; line-height: 1.3; }
+h3 { font-weight: 600; font-size: 15px; }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.top { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 24px; padding: 10px 24px; flex-wrap: wrap; }
-.brand { display: flex; align-items: baseline; gap: 10px; }
-.brand b { font: 600 19px var(--font-display); }
-.brand span { color: var(--muted); font-size: 13px; }
-.rail { display: flex; gap: 4px; flex-wrap: wrap; }
-.rail button { border: 1px solid transparent; background: none; padding: 6px 12px; border-radius: 6px; cursor: pointer;
-  color: var(--muted); display: flex; gap: 8px; align-items: center; }
-.rail button .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px;
-  border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
-.rail button[aria-current="true"] { color: var(--ink); background: var(--accent-soft); }
-.rail button[aria-current="true"] .n { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.rail button.done .n { background: var(--ok-soft); color: var(--ok); border-color: var(--ok); }
+/* ---------- app bar */
+.top { position: sticky; top: 0; z-index: 10; background: #0b1b33; color: #e7eef7; }
+.top::after { content: ""; display: block; height: 3px; background: linear-gradient(90deg, #0b5cad 0 70%, #9cc3e6 70% 100%); }
+.topin { max-width: 1360px; margin: 0 auto; display: flex; align-items: center; gap: 22px; padding: 10px 24px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand svg { flex: none; }
+.brand b { font: 700 18px var(--font-display); letter-spacing: .01em; }
+.brand span { color: #9fb1c8; font-size: 12.5px; }
+.rail { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.rail button { border: none; background: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; color: #9fb1c8;
+  display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.rail button:hover { color: #fff; background: rgba(255,255,255,.06); }
+.rail .n { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px;
+  border: 1.5px solid #3b5375; font-variant-numeric: tabular-nums; }
+.rail button[aria-current="true"] { color: #fff; background: rgba(95,160,230,.16); }
+.rail button[aria-current="true"] .n { background: #0b5cad; border-color: #5fa0e6; color: #fff; }
+.rail button.done .n { background: #157347; border-color: #5fcf8f; color: #fff; }
+.rail .sep { width: 18px; height: 1.5px; background: #3b5375; }
 .top .spacer { flex: 1; }
-.top .meta { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+.top .meta { display: flex; gap: 8px; align-items: center; font-size: 12.5px; color: #9fb1c8; }
+.iconbtn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid #2c4466; background: none; color: #e7eef7; cursor: pointer; display: grid; place-items: center; }
+.iconbtn:hover { background: rgba(255,255,255,.08); }
+.btn.on-dark { background: none; color: #e7eef7; border-color: #2c4466; }
 
-main { max-width: 1320px; margin: 0 auto; padding: 24px; display: grid; gap: 20px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+/* ---------- layout */
+main { max-width: 1360px; margin: 0 auto; padding: 24px; display: grid; gap: 18px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; box-shadow: var(--shadow); }
 .lede { color: var(--muted); max-width: 75ch; margin: 4px 0 0; }
+.eyebrow { font: 600 12px var(--font-display); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
-.grid3 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+.grid3 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
 @media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
-label.f { display: grid; gap: 5px; align-content: start; font-size: 13px; font-weight: 500; }
+label.f { display: grid; gap: 5px; font-size: 13px; font-weight: 600; align-content: start; }
 label.f small { font-weight: 400; color: var(--muted); }
-input[type=text], select, textarea { width: 100%; background: var(--panel); border: 1px solid var(--line);
-  border-radius: 6px; padding: 8px 10px; }
-textarea { resize: vertical; font: 13.5px/1.55 var(--font-mono); }
+input[type=text], select, textarea { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; transition: border-color .15s, box-shadow .15s; }
+input[type=text]:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+textarea { resize: vertical; font: 13.5px/1.6 var(--font-mono); }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: .75; }
+.hint { font-size: 12.5px; color: var(--muted); }
 
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 8px 14px; cursor: pointer;
-  display: inline-flex; gap: 6px; align-items: center; justify-content: center; font-weight: 500; white-space: nowrap; }
-.btn:hover:not(:disabled) { border-color: var(--accent); }
+  display: inline-flex; gap: 6px; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; white-space: nowrap; transition: border-color .15s, background .15s, transform .05s; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.1); color: var(--accent-ink); }
 .btn.ghost { border-color: transparent; background: none; color: var(--muted); }
+.btn.lg { padding: 11px 20px; font-size: 15px; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.row .grow { flex: 1; }
+.grow { flex: 1; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 11.5px var(--font-mono); background: var(--panel); color: var(--ink); }
 
-.drop { border: 1.5px dashed var(--line); border-radius: 8px; padding: 16px; display: grid; gap: 8px; text-align: center;
-  color: var(--muted); cursor: pointer; }
-.drop.over { border-color: var(--accent); background: var(--accent-soft); }
+/* ---------- how it works */
+.how { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; box-shadow: var(--shadow); }
+.how div { padding: 14px 16px; display: grid; gap: 2px; border-left: 1px solid var(--line); }
+.how div:first-child { border-left: none; }
+.how b { font: 700 14px var(--font-display); }
+.how span { font-size: 12.5px; color: var(--muted); }
+.how i { font-style: normal; font: 700 12px var(--font-mono); color: var(--accent); }
+@media (max-width: 760px) { .how { grid-template-columns: 1fr 1fr; } .how div:nth-child(3) { border-left: none; } }
+
+.drop { border: 1.5px dashed var(--accent-pale); border-radius: 10px; padding: 22px 16px; display: grid; gap: 6px; text-align: center; justify-items: center;
+  color: var(--muted); cursor: pointer; background: var(--soft); transition: background .15s, border-color .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); }
+.drop b { color: var(--ink); }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
-.chip { background: var(--accent-soft); color: var(--ink); border-radius: 999px; padding: 2px 10px; font-size: 12.5px;
-  display: inline-flex; gap: 6px; align-items: center; }
+.chip { background: var(--panel); border: 1px solid var(--line); color: var(--ink); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; display: inline-flex; gap: 6px; align-items: center; }
 .chip button { border: none; background: none; cursor: pointer; color: var(--muted); padding: 0; }
+.dict { display: grid; gap: 8px; align-content: start; }
+.dict .btn.rec { background: var(--bad); color: #fff; border-color: var(--bad); }
 
-.notice { border-radius: 8px; padding: 10px 14px; font-size: 14px; border: 1px solid; }
-.notice.info { background: var(--accent-soft); border-color: transparent; }
-.notice.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
-.notice.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
-.notice.bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.notice { border-radius: 8px; padding: 10px 14px; font-size: 14px; border: 1px solid transparent; }
+.notice.info { background: var(--soft); }
+.notice.ok { background: var(--ok-soft); color: var(--ok); }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+.notice.bad { background: var(--bad-soft); color: var(--bad); }
 
-.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .pill.none { background: var(--code); color: var(--muted); }
 .pill.draft { background: var(--warn-soft); color: var(--warn); }
-.pill.saved { background: var(--accent-soft); color: var(--accent); }
+.pill.saved { background: var(--soft); color: var(--accent); }
 .pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.gap { background: var(--bad-soft); color: var(--bad); }
 
-.ws { display: grid; grid-template-columns: 290px 1fr; gap: 20px; align-items: start; }
-@media (max-width: 900px) { .ws { grid-template-columns: 1fr; } }
-.seclist { display: grid; gap: 4px; position: sticky; top: 76px; }
+/* ---------- dashboard */
+.dash { display: grid; grid-template-columns: auto 1fr auto; gap: 22px; align-items: center; }
+@media (max-width: 960px) { .dash { grid-template-columns: 1fr; } }
+.ring { display: flex; gap: 14px; align-items: center; }
+.ring svg { flex: none; }
+.ring b { font: 700 22px var(--font-display); font-variant-numeric: tabular-nums; }
+.ring span { display: block; font-size: 13px; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(6, minmax(78px, 1fr)); gap: 8px; }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 0; background: var(--paper); }
+.stat b { font: 700 20px var(--font-display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+.stat.warn b { color: var(--warn); }
+.cover { min-width: 220px; display: grid; gap: 6px; font-size: 13px; }
+.bar { height: 8px; border-radius: 99px; background: var(--code); overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; }
+
+/* ---------- section workspace */
+.ws { display: grid; grid-template-columns: 280px 1fr; gap: 18px; align-items: start; }
+@media (max-width: 960px) { .ws { grid-template-columns: 1fr; } }
+.seclist { display: grid; gap: 4px; position: sticky; top: 84px; }
 .seclist button { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 8px;
-  padding: 9px 12px 9px 14px; cursor: pointer; display: grid; gap: 2px; position: relative; overflow: hidden; }
+  padding: 9px 12px 9px 14px; cursor: pointer; display: grid; grid-template-columns: 1fr auto; gap: 0 8px; position: relative; overflow: hidden; transition: border-color .15s; }
+.seclist button:hover { border-color: var(--accent-pale); }
 .seclist button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line); }
 .seclist button[data-s="draft"]::before { background: var(--warn); }
 .seclist button[data-s="saved"]::before { background: var(--accent); }
 .seclist button[data-s="ok"]::before { background: var(--ok); }
 .seclist button[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.seclist .t { font-weight: 500; font-size: 14px; }
-.seclist .s { font-size: 12px; color: var(--muted); }
-.progress { height: 6px; background: var(--code); border-radius: 99px; overflow: hidden; }
-.progress i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
-.progress.full i { background: var(--ok); }
-
-.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
-.tabs button { border: none; background: none; padding: 8px 14px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; }
-.tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); font-weight: 500; }
-#editor { min-height: 520px; }
+.seclist .t { font-weight: 600; font-size: 13.5px; }
+.seclist .s { font-size: 12px; color: var(--muted); grid-column: 1; }
+.seclist .k { grid-row: 1 / span 2; grid-column: 2; align-self: center; font: 12px var(--font-mono); color: var(--grey); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--paper); }
+.seg button { border: none; background: none; padding: 6px 12px; cursor: pointer; font-size: 13px; color: var(--muted); border-left: 1px solid var(--line); }
+.seg button:first-child { border-left: none; }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--accent); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.pane { display: grid; gap: 14px; }
+.pane.split { grid-template-columns: 1fr 1fr; }
+@media (max-width: 1100px) { .pane.split { grid-template-columns: 1fr; } }
+#editor { min-height: 540px; }
+.mdbox { border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; max-height: 640px; overflow: auto; background: var(--panel); }
+.statusbar { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
 .md { max-width: 100%; overflow-x: auto; }
 .md table { border-collapse: collapse; font-size: 13px; margin: 8px 0 14px; width: 100%; }
-.md th { background: var(--accent); color: var(--accent-ink); text-align: left; }
+.md th { background: var(--navy); color: #fff; text-align: left; }
+:root[data-theme="dark"] .md th { background: #1d3a63; }
 .md th, .md td { border: 1px solid var(--line); padding: 5px 8px; vertical-align: top; }
 .md tr:nth-child(even) td { background: var(--paper); }
 .md pre { background: var(--code); padding: 10px 12px; border-radius: 6px; overflow-x: auto; font: 12.5px/1.5 var(--font-mono); }
 .md code { font-family: var(--font-mono); font-size: .92em; }
-.md h2 { margin: 18px 0 6px; font-size: 17px; color: var(--accent); }
+.md h2 { margin: 18px 0 6px; font-size: 16.5px; color: var(--accent); }
 .md h3 { margin: 14px 0 4px; }
 .md p, .md ul, .md ol { margin: 4px 0 8px; }
-details.improve { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
-details.improve summary { cursor: pointer; font-weight: 500; }
+.diff { font: 12.5px/1.55 var(--font-mono); border: 1px solid var(--line); border-radius: 6px; max-height: 640px; overflow: auto; }
+.diff div { padding: 0 10px; white-space: pre-wrap; }
+.diff .add { background: var(--ok-soft); color: var(--ok); }
+.diff .del { background: var(--bad-soft); color: var(--bad); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 50%, transparent); }
+.diff .same { color: var(--muted); }
+.improve { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 10px; background: var(--paper); }
+.improve .chipbtn { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.improve .chipbtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.improve .chipbtn:disabled { opacity: .45; cursor: not-allowed; }
 
+/* ---------- diagrams */
 .dgrid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; }
-@media (max-width: 900px) { .dgrid { grid-template-columns: 1fr; } }
+@media (max-width: 960px) { .dgrid { grid-template-columns: 1fr; } }
 .dprev { border: 1px solid var(--line); border-radius: 8px; background: #fff; min-height: 300px; max-height: 520px; overflow: auto; padding: 10px; color: #111; }
 .dprev svg { max-width: 100%; height: auto; }
 .checks { display: flex; flex-wrap: wrap; gap: 8px; }
-.checks label { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; display: flex; gap: 6px; align-items: center; cursor: pointer; font-size: 14px; }
-.checks input:checked + span { font-weight: 600; }
+.checks label { border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; display: flex; gap: 6px; align-items: center; cursor: pointer; font-size: 13.5px; background: var(--panel); }
+.checks label:has(input:checked) { border-color: var(--accent); background: var(--soft); color: var(--accent); font-weight: 600; }
 
+/* ---------- export + traceability */
 table.status { border-collapse: collapse; width: 100%; font-size: 14px; }
-table.status th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 6px 8px; }
+table.status th { text-align: left; color: var(--muted); font-weight: 600; font-size: 12.5px; border-bottom: 1px solid var(--line); padding: 6px 8px; }
 table.status td { border-bottom: 1px solid var(--line); padding: 7px 8px; font-variant-numeric: tabular-nums; }
-.docprev { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 32px 40px; }
-.docprev h1.sec { font: 600 21px var(--font-display); color: var(--accent); margin: 26px 0 8px; padding-top: 18px; border-top: 1px solid var(--line); }
+.trace { display: grid; gap: 6px; }
+.trow { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.trow > button { width: 100%; border: none; background: none; cursor: pointer; display: grid; grid-template-columns: 76px 1fr auto auto; gap: 12px; align-items: center; padding: 9px 12px; text-align: left; }
+.trow > button b { font: 600 13px var(--font-mono); color: var(--accent); }
+.trow .links { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.trow .links span { font: 11.5px var(--font-mono); background: var(--code); border-radius: 4px; padding: 1px 6px; }
+.trow .detail { padding: 4px 14px 12px 100px; display: grid; gap: 6px; font-size: 13.5px; }
+.trow .detail div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
+.trow .detail code { font: 12px var(--font-mono); color: var(--accent); }
+.filter { display: inline-flex; gap: 4px; }
+.docprev { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 32px 40px; box-shadow: var(--shadow); }
+.docprev h1.sec { font: 700 21px var(--font-display); color: var(--accent); margin: 26px 0 8px; padding-top: 18px; border-top: 1px solid var(--line); }
 .docprev h1.sec:first-child { border: none; padding-top: 0; margin-top: 0; }
 figure { margin: 12px 0; text-align: center; }
 figure figcaption { font-size: 12.5px; color: var(--muted); font-style: italic; }
 
-.overlay { position: fixed; inset: 0; background: rgba(10, 18, 30, .55); display: grid; place-items: center; z-index: 20; padding: 16px; }
-.overlay .box { background: var(--panel); border-radius: 12px; width: min(720px, 100%); padding: 22px; display: grid; gap: 14px; max-height: 90vh; overflow: auto; }
+/* ---------- overlays */
+.overlay { position: fixed; inset: 0; background: rgba(8, 17, 31, .6); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.overlay .box { background: var(--panel); border-radius: 12px; width: min(720px, 100%); padding: 22px; display: grid; gap: 14px; max-height: 90vh; overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.progress { height: 6px; background: var(--code); border-radius: 99px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
 .steps { display: grid; gap: 4px; font-size: 14px; }
 .steps div { display: flex; gap: 8px; align-items: center; color: var(--muted); }
-.steps div.cur { color: var(--ink); font-weight: 500; }
+.steps div.cur { color: var(--ink); font-weight: 600; }
 .steps div.done { color: var(--ok); }
 .live { background: var(--code); border-radius: 6px; padding: 10px; font: 12px/1.45 var(--font-mono); height: 180px; overflow: auto; white-space: pre-wrap; }
 .toast { position: fixed; right: 20px; bottom: 20px; z-index: 30; max-width: 420px; display: grid; gap: 8px; }
+.toast .notice { box-shadow: var(--shadow); display: flex; gap: 12px; align-items: center; animation: rise .2s ease-out; }
+.toast .notice button { margin-left: auto; border: none; background: none; font-weight: 700; color: inherit; cursor: pointer; text-decoration: underline; }
+@keyframes rise { from { transform: translateY(8px); opacity: .4; } to { transform: none; opacity: 1; } }
 .hidden { display: none !important; }
-kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font: 12px var(--font-mono); }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.spin { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; animation: sp .8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<header class="top">
-  <div class="brand"><b>BA Copilot</b><span>Notes &amp; BRDs → client-ready Requirements &amp; HLD</span></div>
+<header class="top"><div class="topin">
+  <div class="brand"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect x="3" y="2" width="20" height="26" rx="3" fill="#0b5cad"/><rect x="7" y="8" width="12" height="2" rx="1" fill="#fff"/><rect x="7" y="13" width="12" height="2" rx="1" fill="#9cc3e6"/><rect x="7" y="18" width="8" height="2" rx="1" fill="#9cc3e6"/><circle cx="23" cy="23" r="6" fill="#0b1b33" stroke="#9cc3e6" stroke-width="2"/><path d="M20.5 23l1.8 1.8 3.4-3.6" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>
+    <div><b>BA Copilot</b><br><span>Requirements &amp; HLD workbench</span></div></div>
   <nav class="rail" id="rail" aria-label="Steps"></nav>
   <div class="spacer"></div>
-  <div class="meta"><span id="saveState">Not saved yet</span><button class="btn" id="projBtn" type="button">Projects</button></div>
-</header>
+  <div class="meta"><span id="saveState">Not saved yet</span>
+    <button class="iconbtn" type="button" id="kbdBtn" aria-label="Keyboard shortcuts" title="Keyboard shortcuts">⌨</button>
+    <button class="iconbtn" type="button" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme">◐</button>
+    <button class="btn on-dark" id="projBtn" type="button">Projects</button></div>
+</div></header>
 <main id="main"></main>
 <div class="toast" id="toast"></div>
 
@@ -322,8 +405,10 @@ let busy = false, abortCtl = null;
 /* ====================================================================== helpers */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-function toast(msg, kind = "info", ms = 5000) {
-  const d = document.createElement("div"); d.className = "notice " + kind; d.textContent = msg;
+function toast(msg, kind = "info", ms = 5000, action, fn) {
+  const d = document.createElement("div"); d.className = "notice " + kind; d.setAttribute("role", "status");
+  const sp = document.createElement("span"); sp.textContent = msg; d.appendChild(sp);
+  if (action && fn) { const b = document.createElement("button"); b.type = "button"; b.textContent = action; b.onclick = () => { d.remove(); fn(); }; d.appendChild(b); }
   $("#toast").appendChild(d); setTimeout(() => d.remove(), ms);
 }
 function status(id) {
@@ -408,11 +493,11 @@ function loadProject(data) {
 
 /* ====================================================================== render: shell */
 function renderRail() {
-  $("#rail").innerHTML = VIEWS.map(([v, l], i) => {
+  $("#rail").innerHTML = VIEWS.map(([v, l], i) => (i ? '<span class="sep" aria-hidden="true"></span>' : "") + (() => {
     const done = (v === "input" && SECTIONS.some(s => P.sections[s.id].trim())) || (v === "sections" && allSaved()) ||
                  (v === "diagrams" && P.diagrams.length > 0);
     return `<button type="button" data-v="${v}" aria-current="${view === v}" class="${done && view !== v ? "done" : ""}"><span class="n">${done && view !== v ? "✓" : i + 1}</span>${l}</button>`;
-  }).join("");
+  })()).join("");
   $("#rail").querySelectorAll("button").forEach(b => b.onclick = () => go(b.dataset.v));
 }
 function go(v) { view = v; render(); window.scrollTo(0, 0); }
@@ -426,9 +511,16 @@ function renderInput() {
   const m = P.meta, has = SECTIONS.some(s => P.sections[s.id].trim());
   $("#main").innerHTML = `
   <section>
+    <div class="eyebrow">Step 1 of 4</div>
     <h1>Describe the requirement</h1>
     <p class="lede">Upload a BRD, paste or type meeting notes, or dictate. Use any combination. When you click <b>Submit</b>, the AI reads everything and drafts all eight sections of the document for you to review.</p>
   </section>
+  <div class="how" aria-label="How it works">
+    <div><i>01</i><b>Give input</b><span>Upload, paste or dictate</span></div>
+    <div><i>02</i><b>AI drafts 8 sections</b><span>Requirements to traceability</span></div>
+    <div><i>03</i><b>Review &amp; save</b><span>Edit, improve, approve</span></div>
+    <div><i>04</i><b>Export</b><span>Word and PDF, client-ready</span></div>
+  </div>
   ${!combinedInput() && !m.project_name ? "" : (P._sample ? `<div class="notice info">An example is loaded so you can see how it works. Click <b>Reset</b> to start with your own input.</div>` : "")}
   <div class="card">
     <h2>Project details</h2>
@@ -446,26 +538,28 @@ function renderInput() {
     <div class="grid3">
       <div style="display:grid;gap:8px">
         <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload documents">
-          <b style="color:var(--ink)">Upload BRD or notes</b>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="color:var(--accent)"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M12 18v-6M9 15l3-3 3 3"/></svg>
+          <b>Upload BRD or notes</b>
           <span>Drop files here or click to choose · .docx, .pdf, .txt, .md</span>
           <div class="chips" id="fileChips"></div>
         </div>
         <input type="file" id="fileIn" multiple accept=".docx,.pdf,.txt,.md" class="hidden">
       </div>
-      <div style="display:grid;gap:8px;align-content:start">
-        <button class="btn" type="button" id="dictBtn">🎙 Dictate into notes</button>
+      <div class="dict">
+        <button class="btn lg" type="button" id="dictBtn">🎙 Dictate into notes</button>
         <div class="notice info" id="dictHelp" style="font-size:13px">To dictate, click into the notes box and press <kbd>Win</kbd> + <kbd>H</kbd> on Windows, or press <kbd>Fn</kbd> twice on a Mac. Your words are typed straight into the box.</div>
       </div>
     </div>
     <label class="f" for="notes">Notes or requirement text <small>Paste, type or dictate. Messy notes are fine.</small>
       <textarea id="notes" rows="11" placeholder="Paste meeting notes, an email thread or BRD text here...">${esc(P.notes)}</textarea></label>
+    <div class="statusbar"><span id="noteCount"></span><span class="grow"></span><span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> submit</span></div>
     <label class="f" for="f_system_context">Known systems, tables, current process <small>Optional, but it makes the AS-IS, mapping and SQL much sharper.</small>
       <textarea id="f_system_context" rows="3" placeholder="e.g. Source: CollectPro arrangement table. Target: Teradata credit reporting mart.">${esc(m.system_context)}</textarea></label>
     ${has ? `<label class="row" style="font-size:14px"><input type="checkbox" id="replaceOk"> Replace the existing sections with a new draft from this input (earlier text stays available through Undo)</label>` : ""}
     <div id="inErr"></div>
     <div class="row">
-      <button class="btn" type="button" id="resetBtn">Reset</button>
-      <button class="btn primary" type="button" id="submitBtn">Submit to AI</button>
+      <button class="btn lg" type="button" id="resetBtn">Reset</button>
+      <button class="btn primary lg" type="button" id="submitBtn">Submit to AI →</button>
       <span class="grow"></span>
       <button class="btn ghost" type="button" id="sampleBtn">Load the example</button>
     </div>
@@ -473,7 +567,8 @@ function renderInput() {
   ["project_name","author","client","version","doc_title","domain","system_context"].forEach(k => {
     const el = $("#f_" + k); el.oninput = () => { P.meta[k] = el.value; persistSoon(); };
   });
-  $("#notes").oninput = e => { P.notes = e.target.value; persistSoon(); };
+  const nc = () => { const w = (P.notes.match(/\S+/g) || []).length; $("#noteCount").textContent = `${w} words${P.file_names.length || pendingFiles.length ? " · plus " + (P.file_names.length + pendingFiles.length) + " document(s)" : ""}`; };
+  $("#notes").oninput = e => { P.notes = e.target.value; nc(); persistSoon(); }; nc();
   const drop = $("#drop"), fin = $("#fileIn");
   drop.onclick = () => fin.click();
   drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fin.click(); } };
@@ -511,11 +606,11 @@ function startDictation() {
   if (!SR) return fallback("This browser can't record here.");
   try {
     const rec = new SR(); rec.lang = "en-IN"; rec.continuous = true; rec.interimResults = false;
-    const btn = $("#dictBtn"); btn.textContent = "● Listening... click to stop";
+    const btn = $("#dictBtn"); btn.textContent = "● Listening... click to stop"; btn.classList.add("rec");
     rec.onresult = e => { let t = ""; for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript + " ";
       P.notes = (P.notes.trimEnd() + "\n" + t.trim()).trim(); $("#notes").value = P.notes; persistSoon(); };
     rec.onerror = () => { btn.textContent = "🎙 Dictate into notes"; fallback("The microphone is blocked inside this page."); };
-    rec.onend = () => { btn.textContent = "🎙 Dictate into notes"; btn.onclick = startDictation; };
+    rec.onend = () => { btn.textContent = "🎙 Dictate into notes"; btn.classList.remove("rec"); btn.onclick = startDictation; };
     btn.onclick = () => rec.stop();
     rec.start();
   } catch (_) { fallback("The microphone is blocked inside this page."); }
@@ -551,7 +646,7 @@ async function submit() {
   err.innerHTML = "";
   const ok = await runGeneration(SECTIONS.map(s => s.id));
   delete P._sample; await persist();
-  if (ok) { cur = "analysis"; tab = "edit"; go("sections"); toast("All sections drafted. Review each one, edit as needed and click Save.", "ok", 7000); }
+  if (ok) { cur = "analysis"; mode = "edit"; go("sections"); toast("All sections drafted. Review each one, edit as needed and click Save.", "ok", 7000); }
   else render();
 }
 
@@ -590,93 +685,178 @@ async function runGeneration(ids) {
 }
 
 /* ====================================================================== view: sections */
+let mode = "edit";   // edit | split | preview | changes
+function idStats() {
+  const all = SECTIONS.map(s => P.sections[s.id]).join("\n");
+  const uniq = re => new Set((all.match(re) || [])).size;
+  const oq = ((P.sections.analysis.split(/##\s*Open Questions[^\n]*\n/i)[1] || "").split(/\n##\s/)[0].match(/^\s*\d+[.)]\s/mg) || []).length;
+  return {REQ: uniq(/\bREQ-\d+\b/g), US: uniq(/\bUS-\d+\b/g), DM: uniq(/\bDM-\d+\b/g), TC: uniq(/\bTC-\d+\b/g), RISK: uniq(/\bRISK-\d+\b/g), OQ: oq};
+}
+function traceRows() {
+  const t = parseMd(P.sections.traceability || "").find(b => b.type === "table" && /REQ/i.test(b.rows[0][0]));
+  if (!t) return [];
+  const h = t.rows[0].map(x => x.toLowerCase());
+  const col = k => h.findIndex(x => x.includes(k));
+  const ids = (r, k) => { const i = col(k); return i < 0 ? [] : (r[i].match(/\b[A-Z]{2,4}-\d+\b/g) || []); };
+  return t.rows.slice(1).map(r => {
+    const st = (r[col("status")] || r[r.length - 1] || "").replace(/\*\*/g, "");
+    return {req: (r[0].match(/REQ-\d+/) || [r[0]])[0], text: r[col("requirement")] || r[1] || "",
+      us: ids(r, "user story"), dm: ids(r, "mapping"), tc: ids(r, "test"),
+      status: /gap/i.test(st) ? "gap" : /partial/i.test(st) ? "partial" : "covered", label: st || "Covered"};
+  });
+}
+function ring(pct, size = 64) {
+  const r = (size - 8) / 2, c = 2 * Math.PI * r, full = pct >= 1;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="var(--code)" stroke-width="7"/>
+    <circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${full ? "var(--ok)" : "var(--accent)"}" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - pct)}" transform="rotate(-90 ${size / 2} ${size / 2})" style="transition:stroke-dashoffset .4s"/></svg>`;
+}
+function dashboard() {
+  const n = savedCount(), st = idStats(), tr = traceRows();
+  const cov = tr.filter(r => r.status === "covered").length, part = tr.filter(r => r.status === "partial").length, gap = tr.filter(r => r.status === "gap").length;
+  const tot = Math.max(1, tr.length);
+  return `<div class="card dash">
+    <div class="ring">${ring(n / SECTIONS.length)}<div><b>${n}/${SECTIONS.length}</b><span>sections saved</span><span>${allSaved() ? "Export unlocked" : "Export unlocks at " + SECTIONS.length + "/" + SECTIONS.length}</span></div></div>
+    <div class="stats" aria-label="Document contents">
+      ${[["REQ", "Requirements"], ["US", "User stories"], ["DM", "Mapped fields"], ["TC", "Test cases"], ["RISK", "Risks"], ["OQ", "Open questions"]]
+        .map(([k, l]) => `<div class="stat ${k === "OQ" && st.OQ ? "warn" : ""}"><b>${st[k]}</b><span>${l}</span></div>`).join("")}
+    </div>
+    <div class="cover"><div class="row"><b class="grow" style="font-size:13px">Requirement coverage</b><span>${tr.length ? Math.round(cov / tot * 100) + "%" : "–"}</span></div>
+      <div class="bar"><i style="width:${cov / tot * 100}%;background:var(--ok)"></i><i style="width:${part / tot * 100}%;background:var(--warn)"></i><i style="width:${gap / tot * 100}%;background:var(--bad)"></i></div>
+      <span class="hint">${tr.length ? `${cov} covered · ${part} partial · ${gap} gap` : "Shown once the traceability matrix is drafted"}</span></div>
+  </div>`;
+}
 function renderSections() {
-  const n = savedCount(), s = SEC[cur], [label, cls] = status(cur), locked = P.approved[cur];
+  const s = SEC[cur], idx = SECTIONS.indexOf(s), [label, cls] = status(cur), locked = P.approved[cur], has = !!P.sections[cur].trim();
   const missing = s.deps.filter(d => !P.sections[d].trim()).map(d => SEC[d].title);
+  const hist = (history[cur] || []).length;
+  if (mode === "changes" && !hist) mode = "edit";
   $("#main").innerHTML = `
   <section class="row" style="align-items:end">
-    <div class="grow"><h1>Review each section</h1>
-      <p class="lede">Edit the text, ask the AI to improve it, then click <b>Save</b>. Word and PDF export unlock when all ${SECTIONS.length} sections are saved.</p></div>
+    <div class="grow"><div class="eyebrow">Step 2 of 4</div><h1>Review each section</h1>
+      <p class="lede">Edit the text, ask the AI to improve it, then save. Word and PDF export unlock when all ${SECTIONS.length} sections are saved.</p></div>
+    ${allSaved() ? `<button class="btn primary lg" type="button" id="toExport">Go to Review &amp; Export →</button>` : ""}
   </section>
-  ${allSaved() ? `<div class="notice ok row"><span class="grow">All sections are saved. Word and PDF export is unlocked.</span><button class="btn primary" type="button" id="toExport">Go to Review &amp; Export</button></div>`
-    : `<div class="card" style="padding:14px 18px;gap:8px"><div class="row" style="font-size:14px"><span class="grow"><b>${n} of ${SECTIONS.length}</b> sections saved</span><span style="color:var(--muted)">Export unlocks at ${SECTIONS.length}/${SECTIONS.length}</span></div><div class="progress"><i style="width:${n / SECTIONS.length * 100}%"></i></div></div>`}
+  ${dashboard()}
   <div class="ws">
     <nav class="seclist" aria-label="Sections">
-      ${SECTIONS.map((x, i) => { const [l, c] = status(x.id); return `<button type="button" data-id="${x.id}" data-s="${c}" aria-current="${x.id === cur}"><span class="t">${i + 1}. ${esc(x.title)}</span><span class="s">${l}</span></button>`; }).join("")}
+      ${SECTIONS.map((x, i) => { const [l, c] = status(x.id); return `<button type="button" data-id="${x.id}" data-s="${c}" aria-current="${x.id === cur}"><span class="t">${i + 1}. ${esc(x.title)}</span><span class="k">${c === "ok" ? "🔒" : c === "saved" ? "✓" : ""}</span><span class="s">${l}</span></button>`; }).join("")}
     </nav>
     <div class="card">
-      <div class="row"><h2 class="grow">${SECTIONS.indexOf(s) + 1}. ${esc(s.title)}</h2><span class="pill ${cls}" id="pill">${label}</span></div>
+      <div class="row"><div class="grow"><div class="eyebrow">Section ${idx + 1} of ${SECTIONS.length}</div><h2>${esc(s.title)}</h2></div><span class="pill ${cls}" id="pill">${label}</span></div>
       ${missing.length ? `<div class="notice info" style="font-size:13px">Works best after: ${esc(missing.join(", "))}</div>` : ""}
       <div class="row">
-        <button class="btn primary" type="button" id="saveBtn" ${locked || !P.sections[cur].trim() ? "disabled" : ""}>Save</button>
-        <button class="btn" type="button" id="genBtn" ${locked ? "disabled" : ""}>${P.sections[cur].trim() ? "Regenerate" : "Generate"}</button>
-        <button class="btn" type="button" id="undoBtn" ${locked || !(history[cur] || []).length ? "disabled" : ""}>Undo${(history[cur] || []).length ? " (" + history[cur].length + ")" : ""}</button>
-        <span class="grow"></span>
-        ${locked ? `<button class="btn" type="button" id="reopenBtn">Unlock to edit</button>`
-                 : `<button class="btn" type="button" id="apprBtn" ${!P.sections[cur].trim() ? "disabled" : ""} title="Save and lock this section">Approve &amp; lock</button>`}
-      </div>
-      <div class="tabs" role="tablist">
-        <button type="button" role="tab" aria-selected="${tab === "edit"}" data-t="edit">Edit</button>
-        <button type="button" role="tab" aria-selected="${tab === "preview"}" data-t="preview">Preview</button>
-      </div>
-      <div id="tabBody"></div>
-      <details class="improve" ${locked ? "" : ""}>
-        <summary>Improve with AI</summary>
-        <div style="display:grid;gap:10px;margin-top:10px">
-          <div class="row">${Object.keys(PRESETS).map(k => `<button class="btn" type="button" data-p="${esc(k)}" ${locked || !P.sections[cur].trim() ? "disabled" : ""}>${esc(k)}</button>`).join("")}</div>
-          <div class="row"><input type="text" id="impTxt" class="grow" style="flex:1;min-width:220px" placeholder="Or say what to change, e.g. add a negative scenario for each story; use RBI terminology">
-          <button class="btn primary" type="button" id="impGo" ${locked || !P.sections[cur].trim() ? "disabled" : ""}>Apply</button></div>
+        <div class="seg" role="group" aria-label="View">
+          ${[["edit", "Edit"], ["split", "Split"], ["preview", "Preview"], ["changes", `Changes${hist ? " (" + hist + ")" : ""}`]].map(([m, l]) =>
+            `<button type="button" data-m="${m}" aria-pressed="${mode === m}" ${m === "changes" && !hist ? "disabled" : ""}>${l}</button>`).join("")}
         </div>
-      </details>
+        <span class="grow"></span>
+        <button class="btn" type="button" id="genBtn" ${locked ? "disabled" : ""}>${has ? "Regenerate" : "Generate"}</button>
+        <button class="btn" type="button" id="undoBtn" ${locked || !hist ? "disabled" : ""}>Undo</button>
+        ${locked ? `<button class="btn" type="button" id="reopenBtn">Unlock to edit</button>`
+                 : `<button class="btn" type="button" id="apprBtn" ${!has ? "disabled" : ""} title="Save and lock this section">Approve &amp; lock</button>`}
+      </div>
+      <div id="paneBox"></div>
+      <div class="statusbar"><span id="wc"></span><span>Markdown: <code>##</code> headings, <code>|</code> tables, <code>\`\`\`sql</code> code</span><span class="grow"></span><span><kbd>Ctrl</kbd>+<kbd>S</kbd> save · <kbd>Alt</kbd>+<kbd>↓</kbd> next section</span></div>
+      <div class="improve">
+        <div class="row"><b style="font-size:14px">Improve with AI</b><span class="hint">Rewrites this section. You can always Undo.</span></div>
+        <div class="row">${Object.keys(PRESETS).map(k => `<button class="chipbtn" type="button" data-p="${esc(k)}" ${locked || !has ? "disabled" : ""}>${esc(k)}</button>`).join("")}</div>
+        <div class="row"><input type="text" id="impTxt" style="flex:1;min-width:220px" placeholder="Or say what to change, e.g. add a negative scenario for each story; use RBI terminology">
+        <button class="btn" type="button" id="impGo" ${locked || !has ? "disabled" : ""}>Apply</button></div>
+      </div>
+      <div class="row">
+        <span class="hint grow">${locked ? "This section is approved and locked." : "Saving keeps this version and moves you to the next unsaved section."}</span>
+        <button class="btn" type="button" id="saveBtn" ${locked || !has ? "disabled" : ""}>Save</button>
+        <button class="btn primary" type="button" id="saveNext" ${locked || !has ? "disabled" : ""}>Save &amp; next →</button>
+      </div>
     </div>
   </div>`;
   const te = $("#toExport"); if (te) te.onclick = () => go("export");
   document.querySelectorAll(".seclist button").forEach(b => b.onclick = () => { cur = b.dataset.id; renderSections(); });
-  document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { tab = b.dataset.t; renderSections(); });
-  renderTab();
-  $("#saveBtn").onclick = () => { P.saved[cur] = P.sections[cur]; persist(); toast("Section saved.", "ok", 2500); nextUnsaved(); };
-  $("#genBtn").onclick = async () => { if (await runGeneration([cur])) toast("New draft ready. Click Undo to go back.", "ok"); renderSections(); };
-  $("#undoBtn").onclick = () => { const h = history[cur]; if (h && h.length) { P.sections[cur] = h.pop(); persistSoon(); renderSections(); } };
-  const ap = $("#apprBtn"); if (ap) ap.onclick = () => { P.saved[cur] = P.sections[cur]; P.approved[cur] = true; persist(); nextUnsaved(); };
+  document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { mode = b.dataset.m; renderPane(); document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x.dataset.m === mode)); });
+  renderPane();
+  $("#saveBtn").onclick = () => saveSection(false);
+  $("#saveNext").onclick = () => saveSection(true);
+  $("#genBtn").onclick = async () => { if (await runGeneration([cur])) toast("New draft ready.", "ok", 6000, "Undo", undoCur); renderSections(); };
+  $("#undoBtn").onclick = undoCur;
+  const ap = $("#apprBtn"); if (ap) ap.onclick = () => { P.saved[cur] = P.sections[cur]; P.approved[cur] = true; persist(); toast("Section approved and locked.", "ok", 2500); nextUnsaved(); };
   const ro = $("#reopenBtn"); if (ro) ro.onclick = () => { P.approved[cur] = false; persist(); renderSections(); };
   document.querySelectorAll("[data-p]").forEach(b => b.onclick = () => improve(PRESETS[b.dataset.p]));
   $("#impGo").onclick = () => { const t = $("#impTxt").value.trim(); if (t) improve(t); else toast("Type what you'd like changed.", "warn"); };
+  $("#impTxt").onkeydown = e => { if (e.key === "Enter") $("#impGo").click(); };
   renderRail();
 }
-function nextUnsaved() {
-  const nxt = SECTIONS.find(s => !isSaved(s.id));
-  if (nxt) cur = nxt.id;
-  renderSections();
+function saveSection(next) {
+  if (P.approved[cur] || !P.sections[cur].trim()) return;
+  P.saved[cur] = P.sections[cur]; persist();
+  const done = allSaved();
+  toast(done ? "All sections saved. Export is unlocked." : "Section saved.", "ok", done ? 6000 : 2500, done ? "Export now" : null, done ? () => go("export") : null);
+  if (next) nextUnsaved(); else renderSections();
 }
-function renderTab() {
-  const locked = P.approved[cur];
-  if (tab === "edit") {
-    $("#tabBody").innerHTML = `<textarea id="editor" aria-label="Section text (Markdown)" ${locked ? "readonly" : ""} placeholder="Click Generate, or write your own content here.">${esc(P.sections[cur])}</textarea>
-      ${locked ? `<div style="font-size:13px;color:var(--muted)">This section is approved and locked. Click Unlock to edit.</div>` : ""}`;
-    $("#editor").oninput = e => {
-      P.sections[cur] = e.target.value; const [l, c] = status(cur);
-      $("#pill").className = "pill " + c; $("#pill").textContent = l;
-      $("#saveBtn").disabled = !e.target.value.trim();
-      const b = document.querySelector(`.seclist button[data-id="${cur}"]`); b.dataset.s = c; b.querySelector(".s").textContent = l;
-      persistSoon();
-    };
-  } else {
-    $("#tabBody").innerHTML = `<div class="md">${P.sections[cur].trim() ? marked.parse(P.sections[cur]) : "<p><i>Nothing yet.</i></p>"}</div>`;
+function undoCur() { const h = history[cur]; if (h && h.length) { P.sections[cur] = h.pop(); persistSoon(); renderSections(); toast("Previous version restored.", "info", 2500); } }
+function nextUnsaved() {
+  const i = SECTIONS.findIndex(s => s.id === cur);
+  const nxt = [...SECTIONS.slice(i + 1), ...SECTIONS.slice(0, i)].find(s => !isSaved(s.id));
+  if (nxt) cur = nxt.id;
+  renderSections(); window.scrollTo({top: 0, behavior: "smooth"});
+}
+function wordCount(t) { return (t.match(/\S+/g) || []).length; }
+function updateLive() {
+  const [l, c] = status(cur);
+  $("#pill").className = "pill " + c; $("#pill").textContent = l;
+  const has = !!P.sections[cur].trim(); $("#saveBtn").disabled = !has; $("#saveNext").disabled = !has;
+  const b = document.querySelector(`.seclist button[data-id="${cur}"]`); if (b) { b.dataset.s = c; b.querySelector(".s").textContent = l; }
+  $("#wc").textContent = `${wordCount(P.sections[cur])} words · ${P.sections[cur].split("\n").length} lines`;
+}
+let previewTimer = null;
+function renderPane() {
+  const locked = P.approved[cur], box = $("#paneBox");
+  const ed = `<textarea id="editor" aria-label="Section text (Markdown)" ${locked ? "readonly" : ""} placeholder="Click Generate, or write your own content here.">${esc(P.sections[cur])}</textarea>`;
+  const pv = `<div class="mdbox md" id="pv">${P.sections[cur].trim() ? marked.parse(P.sections[cur]) : "<p><i>Nothing yet.</i></p>"}</div>`;
+  if (mode === "edit") box.innerHTML = `<div class="pane">${ed}</div>`;
+  else if (mode === "split") box.innerHTML = `<div class="pane split">${ed}${pv}</div>`;
+  else if (mode === "preview") box.innerHTML = `<div class="pane">${pv}</div>`;
+  else box.innerHTML = `<div class="pane"><div class="hint">Compared with the previous version: <span class="pill ok">added</span> <span class="pill gap">removed</span></div>${diffHtml((history[cur] || []).slice(-1)[0] || "", P.sections[cur])}</div>`;
+  const e = $("#editor");
+  if (e) e.oninput = () => {
+    P.sections[cur] = e.value; updateLive(); persistSoon();
+    if (mode === "split") { clearTimeout(previewTimer); previewTimer = setTimeout(() => { const p = $("#pv"); if (p) p.innerHTML = marked.parse(P.sections[cur] || ""); }, 250); }
+  };
+  if (e && mode === "split") { const p = $("#pv"); e.onscroll = () => { p.scrollTop = (e.scrollTop / Math.max(1, e.scrollHeight - e.clientHeight)) * (p.scrollHeight - p.clientHeight); }; }
+  updateLive();
+}
+function diffHtml(a, b) {
+  const A = a.split("\n"), B = b.split("\n"), n = A.length, m = B.length;
+  if (n * m > 400000) return `<div class="notice info">This section is too long to compare line by line.</div>`;
+  const L = Array.from({length: n + 1}, () => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out = []; let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (A[i] === B[j]) { out.push(["same", A[i]]); i++; j++; }
+    else if (L[i + 1][j] >= L[i][j + 1]) out.push(["del", A[i++]]); else out.push(["add", B[j++]]);
   }
+  while (i < n) out.push(["del", A[i++]]); while (j < m) out.push(["add", B[j++]]);
+  const changed = out.filter(x => x[0] !== "same").length;
+  return `<div class="hint">${changed} line${changed === 1 ? "" : "s"} changed</div><div class="diff">${out.map(([k, t]) => `<div class="${k}">${k === "add" ? "+ " : k === "del" ? "− " : "  "}${esc(t) || " "}</div>`).join("")}</div>`;
 }
 async function improve(instruction) {
   if (busy) return; busy = true;
-  const pane = $("#tabBody"); tab = "edit"; renderTab();
+  mode = "edit"; renderSections();
   const ed = $("#editor"); ed.readOnly = true;
+  document.querySelectorAll(".improve button, #saveBtn, #saveNext, #genBtn").forEach(b => b.disabled = true);
+  $("#impGo").innerHTML = `<span class="spin"></span> Rewriting...`;
   const before = P.sections[cur];
   try {
     const out = await ask(`${SYSTEM}\n\nImprove the following section of a BFSI project document.\nSection: ${SEC[cur].title}\nUser instruction: ${instruction}\nKeep Markdown formatting (## / ### headings, tables, \`\`\`sql / \`\`\`gherkin fences). Return ONLY the full improved section.\n\n=== CURRENT SECTION ===\n${before}`,
       t => { ed.value = t; ed.scrollTop = ed.scrollHeight; });
     P.sections[cur] = before; setSection(cur, out); P.approved[cur] = false;
-    toast("Improved. Not happy with it? Click Undo.", "ok");
-  } catch (e) { toast(aiError(e), "bad"); }
-  busy = false; persistSoon(); renderSections(); void pane;
+    mode = "changes";
+    toast("Improved. The Changes view shows what was edited.", "ok", 6000, "Undo", undoCur);
+  } catch (e) { P.sections[cur] = before; toast(aiError(e), "bad"); }
+  busy = false; persistSoon(); renderSections();
 }
+
 
 /* ====================================================================== view: diagrams */
 let mermaidReady = false, renderSeq = 0;
@@ -694,7 +874,7 @@ async function mermaidSvg(code) {
 }
 function renderDiagrams() {
   $("#main").innerHTML = `
-  <section><h1>Diagrams</h1>
+  <section><div class="eyebrow">Step 3 of 4</div><h1>Diagrams</h1>
     <p class="lede">Pick the diagrams your HLD needs. The AI draws them from your saved sections. Each diagram is plain Mermaid code: edit it and the preview updates, or tell the AI what to change. Choose which section each one appears in.</p></section>
   <div class="card">
     <h2>Add diagrams</h2>
@@ -766,30 +946,70 @@ async function addDiagrams() {
 }
 
 /* ====================================================================== view: export */
+let traceFilter = "all";
+function findUs(id) { const m = (P.sections.user_stories || "").match(new RegExp(`###\\s*${id}\\s*:?\\s*([^\\n]*)`)); return m ? m[1].trim() : ""; }
+function findRow(sec, id, col) {
+  for (const b of parseMd(P.sections[sec] || "")) if (b.type === "table") {
+    const r = b.rows.find(x => x[0].replace(/\*\*/g, "").trim() === id); if (r) return r[col] || r[1] || "";
+  } return "";
+}
+function traceExplorer() {
+  const rows = traceRows();
+  if (!rows.length) return `<div class="notice info">The traceability explorer appears once the Requirements Traceability Matrix section is drafted.</div>`;
+  const shown = rows.filter(r => traceFilter === "all" || (traceFilter === "gaps" && r.status !== "covered"));
+  const pill = r => `<span class="pill ${r.status === "covered" ? "ok" : r.status === "partial" ? "draft" : "gap"}">${esc(r.label)}</span>`;
+  return `<div class="row"><span class="hint grow">Click a requirement to see the stories, mapped fields and test cases that cover it.</span>
+    <div class="filter seg" role="group" aria-label="Filter">
+      <button type="button" data-f="all" aria-pressed="${traceFilter === "all"}">All (${rows.length})</button>
+      <button type="button" data-f="gaps" aria-pressed="${traceFilter === "gaps"}">Gaps &amp; partial (${rows.filter(r => r.status !== "covered").length})</button></div></div>
+  <div class="trace">${shown.map((r, i) => `<div class="trow">
+    <button type="button" aria-expanded="false" data-i="${i}"><b>${esc(r.req)}</b><span>${esc(r.text)}</span>
+      <span class="links">${[...r.us, ...r.tc].map(x => `<span>${esc(x)}</span>`).join("") || `<span>no links</span>`}</span>${pill(r)}</button>
+    <div class="detail hidden">
+      ${r.us.map(u => `<div><code>${esc(u)}</code><span>${esc(findUs(u) || "User story")}</span></div>`).join("")}
+      ${r.dm.map(d => `<div><code>${esc(d)}</code><span>${esc(findRow("data_mapping", d, 1) || "Mapped field")}</span></div>`).join("")}
+      ${r.tc.map(t => `<div><code>${esc(t)}</code><span>${esc(findRow("test_cases", t, 2) || "Test case")}</span></div>`).join("")}
+      ${!r.us.length && !r.tc.length ? `<div><code>Action</code><span>No story or test case covers this requirement yet. Add one in sections 4 and 6, then update section 8.</span></div>` : ""}
+    </div></div>`).join("")}</div>`;
+}
 function renderExport() {
   const ready = allSaved(), pending = SECTIONS.filter(s => !isSaved(s.id));
   $("#main").innerHTML = `
-  <section><h1>Review &amp; export</h1>
-    <p class="lede">Check the whole document, then download it as Word or PDF. Both include a cover page, document control, contents, styled tables and numbered figures.</p></section>
-  <div class="card">
-    <table class="status"><thead><tr><th>#</th><th>Section</th><th>Status</th><th>Diagrams</th></tr></thead><tbody>
-      ${SECTIONS.map((s, i) => { const [l, c] = status(s.id); return `<tr><td>${i + 1}</td><td><a href="#" data-go="${s.id}">${esc(s.title)}</a></td><td><span class="pill ${c}">${l}</span></td><td>${P.diagrams.filter(d => d.include && d.attach === s.id).length || "–"}</td></tr>`; }).join("")}
-    </tbody></table>
-    ${ready ? `<div class="notice ok">All sections are saved. Your document is ready to download.</div>`
-            : `<div class="notice warn">Export unlocks once every section is saved. Still to review and save: ${esc(pending.map(s => s.title).join(", "))}.</div>`}
-    <div class="row">
-      <button class="btn primary" type="button" id="dlDocx" ${ready ? "" : "disabled"}>Download Word (.docx)</button>
-      <button class="btn primary" type="button" id="dlPdf" ${ready ? "" : "disabled"}>Download PDF</button>
-      <span id="dlMsg" style="font-size:14px;color:var(--muted)"></span>
+  <section><div class="eyebrow">Step 4 of 4</div><h1>Review &amp; export</h1>
+    <p class="lede">Check coverage and the whole document, then download it as Word or PDF. Both include a cover page, document control, contents, styled tables and numbered figures.</p></section>
+  ${dashboard()}
+  <div class="grid3" style="align-items:start">
+    <div class="card"><h2>Traceability explorer</h2><div id="traceBox">${traceExplorer()}</div></div>
+    <div class="card">
+      <h2>Download</h2>
+      ${ready ? `<div class="notice ok">All sections are saved. Your document is ready.</div>`
+              : `<div class="notice warn">Export unlocks once every section is saved. Still to review: ${esc(pending.map(s => s.title).join(", "))}.</div>`}
+      <div style="display:grid;gap:8px">
+        <button class="btn primary lg" type="button" id="dlDocx" ${ready ? "" : "disabled"}>Download Word (.docx)</button>
+        <button class="btn lg" type="button" id="dlPdf" ${ready ? "" : "disabled"}>Download PDF</button>
+      </div>
+      <span id="dlMsg" class="hint"></span>
+      <table class="status"><thead><tr><th>Section</th><th>Status</th><th>Fig.</th></tr></thead><tbody>
+        ${SECTIONS.map((s, i) => { const [l, c] = status(s.id); return `<tr><td><a href="#" data-go="${s.id}">${i + 1}. ${esc(s.title)}</a></td><td><span class="pill ${c}">${l}</span></td><td>${P.diagrams.filter(d => d.include && d.attach === s.id).length || "–"}</td></tr>`; }).join("")}
+      </tbody></table>
+      <div class="hint">In Word, click <b>Yes</b> when asked to update fields; that fills in the table of contents.</div>
     </div>
-    <div style="font-size:13px;color:var(--muted)">In Word, click <b>Yes</b> when asked to update fields; that fills in the table of contents.</div>
   </div>
-  <div class="docprev md" id="docPrev"></div>`;
-  document.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); cur = a.dataset.go; tab = "edit"; go("sections"); });
+  <div class="row"><h2 class="grow">Document preview</h2><span class="hint">Exactly what goes into the export</span></div>
+  <div class="docprev md" id="docPrev"><p class="hint"><span class="spin"></span> Building preview...</p></div>`;
+  document.querySelectorAll("[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); cur = a.dataset.go; mode = "edit"; go("sections"); });
   $("#dlDocx").onclick = () => doExport("docx");
   $("#dlPdf").onclick = () => doExport("pdf");
+  wireTrace();
   buildPreview();
 }
+function wireTrace() {
+  document.querySelectorAll("#traceBox [data-f]").forEach(b => b.onclick = () => { traceFilter = b.dataset.f; $("#traceBox").innerHTML = traceExplorer(); wireTrace(); });
+  document.querySelectorAll("#traceBox .trow > button").forEach(b => b.onclick = () => {
+    const d = b.nextElementSibling, open = d.classList.toggle("hidden") === false; b.setAttribute("aria-expanded", open);
+  });
+}
+
 async function buildPreview() {
   const box = $("#docPrev"); let html = "", n = 0;
   for (const s of SECTIONS) {
@@ -904,7 +1124,7 @@ async function doExport(kind) {
 
 /* ---------- Word */
 async function buildDocx(secs) {
-  const D = docx, NAVY = "1F3A5F", m = P.meta, FULL = 9638;
+  const D = docx, NAVY = "0B1B33", BLUE = "0B5CAD", m = P.meta, FULL = 9638;
   const tr = (r, size, extra = {}) => new D.TextRun({text: r.t, bold: r.b || extra.bold, italics: r.i, font: r.code ? "Consolas" : undefined, size, color: extra.color});
   const para = (text, opts = {}) => new D.Paragraph({...opts, children: runs(text).map(r => tr(r, opts.size))});
   const cellShade = fill => ({fill, type: D.ShadingType.CLEAR, color: "auto"});
@@ -974,8 +1194,8 @@ async function buildDocx(secs) {
     creator: m.author || "BA Copilot", title: m.project_name || "Project Document",
     features: {updateFields: true},
     styles: {default: {document: {run: {font: "Calibri", size: 21}},
-      heading1: {run: {font: "Calibri", size: 32, bold: true, color: NAVY}, paragraph: {spacing: {before: 240, after: 160}}},
-      heading2: {run: {font: "Calibri", size: 26, bold: true, color: NAVY}, paragraph: {spacing: {before: 240, after: 100}}},
+      heading1: {run: {font: "Calibri", size: 32, bold: true, color: BLUE}, paragraph: {spacing: {before: 240, after: 160}}},
+      heading2: {run: {font: "Calibri", size: 26, bold: true, color: BLUE}, paragraph: {spacing: {before: 240, after: 100}}},
       heading3: {run: {font: "Calibri", size: 23, bold: true, color: NAVY}, paragraph: {spacing: {before: 180, after: 80}}}}},
     numbering: {config: [
       {reference: "bul", levels: [lvl(0, D.LevelFormat.BULLET, "•", 360), lvl(1, D.LevelFormat.BULLET, "–", 720)]},
@@ -991,7 +1211,7 @@ async function buildDocx(secs) {
 
 /* ---------- PDF */
 async function buildPdf(secs) {
-  const m = P.meta, NAVY = "#1F3A5F", AVAIL = 515;
+  const m = P.meta, NAVY = "#0B1B33", BLUE = "#0B5CAD", AVAIL = 515;
   const txt = (text, extra = {}) => ({text: runs(text).map(r => ({text: r.t, bold: r.b, italics: r.i, background: r.code ? "#EEF1F5" : undefined})), ...extra});
   const table = rows => {
     const fs = rows[0].length > 6 ? 7.5 : 8.5, widths = colWidths(rows, AVAIL - rows[0].length * 8.5, fs * 0.52, 2);
@@ -1003,7 +1223,8 @@ async function buildPdf(secs) {
     layout: {hLineColor: "#E5E7EB", vLineColor: "#E5E7EB", paddingLeft: () => 8, paddingRight: () => 8, paddingTop: () => 6, paddingBottom: () => 6}});
   const content = [];
   // cover
-  content.push({text: m.project_name || "Untitled Project", style: "title", margin: [0, 200, 0, 6]});
+  content.push({canvas: [{type: "rect", x: 0, y: 0, w: 360, h: 5, color: BLUE}, {type: "rect", x: 360, y: 0, w: 155, h: 5, color: "#9CC3E6"}], margin: [0, 190, 0, 14]});
+  content.push({text: m.project_name || "Untitled Project", style: "title", margin: [0, 0, 0, 6]});
   content.push({text: m.doc_title || "Business Requirements & High-Level Design", fontSize: 15, color: "#4B5563", margin: [0, 0, 0, 30]});
   [["Client / Business unit", m.client], ["Prepared by", m.author], ["Version", m.version || "0.1"], ["Date", today()], ["Status", docStatus()]]
     .filter(x => x[1]).forEach(([k, v]) => content.push({text: [{text: k + ": ", bold: true}, v], margin: [0, 0, 0, 4]}));
@@ -1043,8 +1264,8 @@ async function buildPdf(secs) {
     pageSize: "A4", pageMargins: [40, 50, 40, 46], content,
     info: {title: m.project_name || "Project Document", author: m.author || ""},
     defaultStyle: {fontSize: 9.5, lineHeight: 1.25, color: "#111827"},
-    styles: {title: {fontSize: 26, bold: true, color: NAVY}, h1: {fontSize: 16, bold: true, color: NAVY, margin: [0, 0, 0, 10]},
-      h2: {fontSize: 12.5, bold: true, color: NAVY, margin: [0, 10, 0, 5]}, h3: {fontSize: 10.5, bold: true, color: NAVY, margin: [0, 8, 0, 4]}},
+    styles: {title: {fontSize: 26, bold: true, color: NAVY}, h1: {fontSize: 16, bold: true, color: BLUE, margin: [0, 0, 0, 10]},
+      h2: {fontSize: 12.5, bold: true, color: BLUE, margin: [0, 10, 0, 5]}, h3: {fontSize: 10.5, bold: true, color: NAVY, margin: [0, 8, 0, 4]}},
     header: (p) => p === 1 ? null : {text: `${m.project_name || ""}  |  ${m.client || ""}`, fontSize: 7.5, color: "#6B7280", margin: [40, 22, 40, 0]},
     footer: (p) => p === 1 ? null : {text: `Page ${p}`, alignment: "right", fontSize: 7.5, color: "#6B7280", margin: [40, 14, 40, 0]},
   };
@@ -1071,6 +1292,34 @@ async function openProjects() {
 
 /* ====================================================================== boot */
 $("#projBtn").onclick = openProjects;
+try { const th = localStorage.getItem("bacopilot:theme"); if (th) document.documentElement.dataset.theme = th; } catch (_) {}
+$("#themeBtn").onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark";
+  try { localStorage.setItem("bacopilot:theme", document.documentElement.dataset.theme); } catch (_) {}
+};
+$("#kbdBtn").onclick = () => {
+  const ov = document.createElement("div"); ov.className = "overlay";
+  ov.innerHTML = `<div class="box" role="dialog" aria-label="Keyboard shortcuts"><div class="row"><h2 class="grow">Keyboard shortcuts</h2><button class="btn ghost" type="button" data-x>Close</button></div>
+    <table class="status"><tbody>
+      <tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Submit your input to the AI (Input step)</td></tr>
+      <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save the current section</td></tr>
+      <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>S</kbd></td><td>Save and go to the next unsaved section</td></tr>
+      <tr><td><kbd>Alt</kbd> + <kbd>↓</kbd> / <kbd>↑</kbd></td><td>Next / previous section</td></tr>
+      <tr><td><kbd>Alt</kbd> + <kbd>1</kbd>…<kbd>4</kbd></td><td>Jump to a step</td></tr>
+      <tr><td><kbd>Win</kbd> + <kbd>H</kbd></td><td>Windows voice typing into any text box</td></tr>
+    </tbody></table></div>`;
+  document.body.appendChild(ov); ov.querySelector("[data-x]").onclick = () => ov.remove(); ov.onclick = e => { if (e.target === ov) ov.remove(); };
+};
+document.addEventListener("keydown", e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key === "Enter" && view === "input") { e.preventDefault(); $("#submitBtn").click(); }
+  else if (mod && (e.key === "s" || e.key === "S") && view === "sections") { e.preventDefault(); saveSection(e.shiftKey); }
+  else if (e.altKey && (e.key === "ArrowDown" || e.key === "ArrowUp") && view === "sections") {
+    e.preventDefault(); const i = SECTIONS.findIndex(s => s.id === cur) + (e.key === "ArrowDown" ? 1 : -1);
+    if (i >= 0 && i < SECTIONS.length) { cur = SECTIONS[i].id; renderSections(); } }
+  else if (e.altKey && /^[1-4]$/.test(e.key)) { e.preventDefault(); go(VIEWS[+e.key - 1][0]); }
+});
 // Open in a realistic working state: last project if any, else the example input.
 try { const last = JSON.parse(localStorage.getItem("bacopilot:last")); if (last && last.meta) loadProject(last); } catch (_) {}
 if (!P.meta.project_name && !P.notes) { P.meta = {...SAMPLE.meta}; P.notes = SAMPLE.notes; P._sample = true; }
