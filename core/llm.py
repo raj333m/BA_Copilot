@@ -77,6 +77,59 @@ def call_llm(provider: str, model: str, api_key: str, system: str, prompt: str,
     raise LLMError(f"Unknown provider: {provider}")
 
 
+def transcribe_audio(provider: str, api_key: str, wav_bytes: bytes) -> str:
+    """Speech-to-text for dictated notes.
+    - OpenAI key  -> Whisper (best for long, domain-heavy dictation)
+    - Gemini key  -> Gemini audio understanding
+    - otherwise   -> free Google Web Speech via the SpeechRecognition package (no key)
+    """
+    import base64
+    try:
+        if provider == "OpenAI" and api_key:
+            r = requests.post("https://api.openai.com/v1/audio/transcriptions",
+                              headers={"Authorization": f"Bearer {api_key}"},
+                              files={"file": ("dictation.wav", wav_bytes, "audio/wav")},
+                              data={"model": "whisper-1"}, timeout=TIMEOUT)
+            _raise_for(r)
+            return r.json()["text"].strip()
+        if provider == "Google Gemini" and api_key:
+            body = {"contents": [{"role": "user", "parts": [
+                {"inline_data": {"mime_type": "audio/wav", "data": base64.b64encode(wav_bytes).decode()}},
+                {"text": "Transcribe this business dictation verbatim in English. "
+                         "Return only the transcript text."}]}]}
+            r = requests.post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+                              params={"key": api_key}, json=body, timeout=TIMEOUT)
+            _raise_for(r)
+            return "".join(p.get("text", "") for p in r.json()["candidates"][0]["content"]["parts"]).strip()
+    except requests.RequestException as e:
+        raise LLMError(f"Network error during transcription: {e}") from e
+
+    # Free fallback: Google Web Speech API (needs internet, no key). Long audio is sent in 50s chunks.
+    try:
+        import io
+        import speech_recognition as sr
+    except ImportError as e:
+        raise LLMError("Install SpeechRecognition (pip install SpeechRecognition) or use an "
+                       "OpenAI / Gemini key for dictation.") from e
+    rec = sr.Recognizer()
+    parts = []
+    with sr.AudioFile(io.BytesIO(wav_bytes)) as source:
+        total = source.DURATION
+        offset = 0.0
+        while offset < total:
+            chunk = rec.record(source, duration=50)
+            offset += 50
+            try:
+                parts.append(rec.recognize_google(chunk, language="en-IN"))
+            except sr.UnknownValueError:
+                continue
+            except sr.RequestError as e:
+                raise LLMError(f"Speech service unavailable: {e}") from e
+    if not parts:
+        raise LLMError("Could not understand the audio. Try speaking closer to the microphone.")
+    return " ".join(parts)
+
+
 def _raise_for(r: requests.Response):
     if r.status_code >= 400:
         try:

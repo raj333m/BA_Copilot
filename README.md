@@ -27,22 +27,36 @@ BA Copilot is a GenAI assistant for Business Analysts in Banking & Financial Ser
 
 ```mermaid
 flowchart LR
-    A[Messy notes / BRD upload] --> B[Generate sections]
-    B --> C{BA review}
-    C -- Edit / Improve with AI --> C
-    C -- Save --> D[Saved]
-    D -- Approve --> E[Approved & locked]
-    E --> F[Diagrams]
-    F --> G[Export Word / PDF]
+    A[Upload BRD / paste notes / dictate] --> B{Submit or Reset}
+    B -- Reset --> A
+    B -- Submit --> C[AI drafts all 8 sections]
+    C --> D{BA reviews each section}
+    D -- Edit / Improve with AI --> D
+    D -- Save --> E[Section saved]
+    E --> F{All sections saved?}
+    F -- No --> D
+    F -- Yes --> G[Export Word / PDF unlocked]
 ```
+
+- **Three ways to give input, usable together:** upload documents (.docx / .pdf / .txt / .md), paste or type notes, or **dictate** with the built-in recorder.
+- **Submit / Reset:** *Submit* sends everything to the AI engine, which drafts every section in one go. *Reset* clears all inputs back to their original state.
 
 - **Chained generation:** each section is generated from your input *plus* the sections it depends on, so IDs stay consistent (test cases are written against the user stories, the traceability matrix only uses IDs that exist).
 - **Edit and preview:** Markdown editor with a rendered preview.
 - **Improve with AI:** one-click *client-ready*, *fix grammar*, *concise*, *more detail*, or your own instruction ("use RBI terminology", "add a negative scenario per story").
 - **Undo:** the last 10 versions of every section are kept.
-- **Save and approve:** approved sections are locked; reopen to edit. Progress is tracked in the sidebar.
+- **Save each section** when you're satisfied. Optionally **Approve** to lock it. Progress is tracked in the sidebar.
+- **Export gate:** Word and PDF export unlock only when **every section has been saved**, so no unreviewed AI text leaves the tool.
 - **Projects:** saved automatically as JSON in `projects/`; download or import to continue later.
-- **Export:** cover page, document control, section review status, table of contents, styled tables, code blocks, numbered figures, headers and page numbers. Choose *all sections* (draft) or *approved only* (final).
+- **Export:** cover page, document control, section review status, table of contents, styled tables, code blocks, numbered figures, headers and page numbers.
+
+### Dictation
+The recorder works with any provider:
+- **OpenAI key** → Whisper transcription (best for long, jargon-heavy dictation)
+- **Gemini key** → Gemini audio transcription
+- **No key / Demo / Claude** → free Google Web Speech (needs internet)
+
+On Windows you can also press **Win + H** inside the notes box to use Windows voice typing.
 
 ## 🚀 Quick start
 
@@ -57,7 +71,7 @@ streamlit run app.py
 
 The app opens at http://localhost:8501.
 
-1. Leave the provider on **Demo mode**, click **Load sample example** → **Sections** → **⚡ Generate all sections** to see the full flow without an API key.
+1. Leave the provider on **Demo mode**, click **Load sample example** → **🚀 Submit to AI**, then review and **Save** each section and export. No API key needed.
 2. To use your own notes, choose a provider in the sidebar and paste your API key:
    - **Google Gemini** (free tier available): key from https://aistudio.google.com/apikey
    - **OpenAI**: https://platform.openai.com/api-keys

@@ -346,6 +346,8 @@ def _doc_status(project, include_drafts):
     ids = [s["id"] for s in SECTIONS if project["sections"].get(s["id"], "").strip()]
     if ids and all(project["status"].get(i) == "Approved" for i in ids):
         return "Final - all sections approved"
+    if ids and all(project["status"].get(i) in ("Approved", "Saved") for i in ids):
+        return "Final - all sections reviewed"
     return "Draft" if include_drafts else "Approved sections only"
 
 

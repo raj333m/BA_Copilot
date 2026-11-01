@@ -19,7 +19,7 @@ from core.demo_content import DEMO_DIAGRAMS, DEMO_SECTIONS, SAMPLE_CONTEXT, SAMP
 from core.diagrams import preview_html, render_png
 from core.exporters import export_docx, export_pdf
 from core.input_reader import read_uploaded
-from core.llm import PROVIDERS, LLMError, call_llm, strip_fences
+from core.llm import PROVIDERS, LLMError, call_llm, strip_fences, transcribe_audio
 from core.sections import (ATTACH_OPTIONS, DIAGRAM_TYPES, IMPROVE_PRESETS, SECTION_BY_ID, SECTIONS,
                            SYSTEM_PROMPT, build_diagram_fix_prompt, build_diagram_prompt,
                            build_improve_prompt, build_section_prompt)
@@ -46,7 +46,9 @@ def new_project() -> dict:
         "meta": {"project_name": "", "client": "", "author": "", "version": "0.1",
                  "doc_title": "Business Requirements & High-Level Design", "domain": "",
                  "system_context": ""},
-        "raw_input": "",
+        "raw_input": "",          # typed / pasted / dictated notes
+        "file_text": "",          # text extracted from uploaded documents
+        "file_names": [],
         "sections": {s["id"]: "" for s in SECTIONS},     # working copy (what you see)
         "saved": {s["id"]: "" for s in SECTIONS},        # last saved version
         "approved": {s["id"]: False for s in SECTIONS},
@@ -109,9 +111,22 @@ def section_status(sid: str) -> tuple[str, str]:
 ICON = {"Not started": "⚪", "Draft - unsaved": "📝", "Saved": "💾", "Approved": "✅"}
 
 
+def combined_input() -> str:
+    parts = []
+    if P["raw_input"].strip():
+        parts.append(P["raw_input"].strip())
+    if P.get("file_text", "").strip():
+        parts.append(P["file_text"].strip())
+    return "\n\n".join(parts)
+
+
 def ctx() -> dict:
     m = P["meta"]
-    return {**m, "raw_input": P["raw_input"]}
+    return {**m, "raw_input": combined_input()}
+
+
+def all_saved() -> bool:
+    return all(section_status(s["id"])[0] in ("Saved", "Approved") for s in SECTIONS)
 
 
 def is_demo() -> bool:
@@ -131,7 +146,7 @@ def set_section(sid: str, text: str, keep_history=True):
 
 
 def generate_section(sid: str) -> bool:
-    if not P["raw_input"].strip():
+    if not combined_input().strip():
         flash("warning", "Add your notes or BRD on the Input page first.")
         return False
     try:
@@ -214,7 +229,36 @@ def cb_load_sample():
     P["raw_input"] = SAMPLE_INPUT
     P["meta"].update({**SAMPLE_CONTEXT, "author": P["meta"].get("author") or "Business Analyst"})
     reset_widget_keys()
-    flash("success", "Sample loaded. Go to 'Sections' and click 'Generate all'.")
+    flash("success", "Sample loaded. Click '🚀 Submit to AI' to draft the document.")
+
+
+def cb_reset_inputs():
+    """Reset every input on the Input page back to its original state."""
+    defaults = new_project()
+    P["meta"] = defaults["meta"]
+    P["raw_input"], P["file_text"], P["file_names"] = "", "", []
+    st.session_state.input_gen = st.session_state.get("input_gen", 0) + 1   # clears uploader & recorder
+    for k in list(st.session_state.keys()):
+        if k.startswith("m_") or k == "raw_input":
+            del st.session_state[k]
+    flash("info", "Inputs reset. Generated sections are kept until you submit new input.")
+
+
+def cb_transcribe():
+    audio = st.session_state.get(f"dict_{st.session_state.get('input_gen', 0)}")
+    if audio is None:
+        flash("warning", "Record something first.")
+        return
+    try:
+        text = transcribe_audio(st.session_state.ai_provider, st.session_state.get("ai_key", ""),
+                                audio.getvalue())
+    except LLMError as e:
+        flash("error", f"Dictation: {e}")
+        return
+    P["raw_input"] = (P["raw_input"].rstrip() + "\n" + text).strip()
+    st.session_state["raw_input"] = P["raw_input"]
+    st.session_state.input_gen = st.session_state.get("input_gen", 0) + 1   # clear the recorder
+    flash("success", "Dictation added to your notes - review and edit it before submitting.")
 
 
 def cb_new_project():
@@ -299,6 +343,9 @@ def go(p):
     st.session_state.nav = p
 
 
+if "_goto" in st.session_state:
+    st.session_state.nav = st.session_state.pop("_goto")
+
 with st.sidebar:
     st.markdown("## 📘 BA Copilot")
     st.caption("Notes / BRD → client-ready Requirements & HLD pack")
@@ -328,8 +375,8 @@ with st.sidebar:
         st.session_state.setdefault("ai_key", "")
 
     st.divider()
-    done = sum(1 for s in SECTIONS if P["approved"][s["id"]])
-    st.markdown(f"**Progress:** {done}/{len(SECTIONS)} sections approved")
+    done = sum(1 for s in SECTIONS if section_status(s["id"])[0] in ("Saved", "Approved"))
+    st.markdown(f"**Progress:** {done}/{len(SECTIONS)} sections saved")
     st.progress(done / len(SECTIONS))
 
     st.divider()
@@ -388,30 +435,76 @@ if page.startswith("1"):
                     placeholder="e.g. UK Consumer Credit - CRA reporting / FCA Consumer Duty")
 
     st.subheader("Requirement input")
-    files = st.file_uploader("Upload BRD / notes (.docx, .pdf, .txt, .md)", type=["docx", "pdf", "txt", "md"],
-                             accept_multiple_files=True)
-    if files and st.button("Add uploaded text to input"):
-        texts = []
-        for f in files:
-            try:
-                texts.append(f"--- {f.name} ---\n{read_uploaded(f)}")
-            except Exception as e:  # noqa: BLE001
-                st.error(f"Could not read {f.name}: {e}")
-        P["raw_input"] = (P["raw_input"] + "\n\n" + "\n\n".join(texts)).strip()
-        st.session_state["raw_input"] = P["raw_input"]
-        st.success(f"Added text from {len(texts)} file(s).")
+    st.caption("Use any combination: upload documents, paste or type notes, or dictate. Everything is sent to the AI when you click Submit.")
+    gen = st.session_state.get("input_gen", 0)
+    u1, u2 = st.columns([1.3, 1])
+    with u1:
+        files = st.file_uploader("📄 Upload BRD / notes (.docx, .pdf, .txt, .md)",
+                                 type=["docx", "pdf", "txt", "md"], accept_multiple_files=True,
+                                 key=f"upl_{gen}")
+        if P.get("file_names") and not files:
+            st.caption("Included from earlier: " + ", ".join(P["file_names"]))
+    with u2:
+        st.audio_input("🎙 Dictate your notes", key=f"dict_{gen}")
+        st.button("Transcribe & add to notes", on_click=cb_transcribe, use_container_width=True)
+        st.caption("Tip: on Windows you can also press **Win + H** inside the notes box to dictate.")
 
     if "raw_input" not in st.session_state:
         st.session_state["raw_input"] = P["raw_input"]
-    st.text_area("Notes / BRD text *", key="raw_input", on_change=cb_raw, height=320,
-                 placeholder="Paste your notes here…")
+    st.text_area("✍️ Notes / requirement text (paste, type or dictate)", key="raw_input", on_change=cb_raw,
+                 height=280, placeholder="Paste meeting notes, an email thread or BRD text here…")
     bound_input("Known systems, tables, current process (optional but recommended)", "system_context",
-                area=True, height=110,
+                area=True, height=100,
                 placeholder="e.g. Source: CollectPro arrangement table. Target: Teradata credit reporting mart…")
 
-    b1, b2, _ = st.columns([1, 1, 3])
-    b1.button("Load sample example", on_click=cb_load_sample, use_container_width=True)
-    b2.button("Next: Sections →", type="primary", use_container_width=True, on_click=go, args=(PAGES[1],))
+    has_sections = any(P["sections"][x["id"]].strip() for x in SECTIONS)
+    confirm = True
+    if has_sections:
+        confirm = st.checkbox("Replace the existing sections with a new draft from this input "
+                              "(previous versions stay available via Undo)")
+
+    b1, b2, _, b3 = st.columns([1, 1.4, 1.6, 1.2])
+    b1.button("🔄 Reset", on_click=cb_reset_inputs, use_container_width=True,
+              help="Clear all inputs on this page")
+    submit = b2.button("🚀 Submit to AI", type="primary", use_container_width=True,
+                       help="Send all inputs to the AI and draft every section of the document")
+    b3.button("Load sample example", on_click=cb_load_sample, use_container_width=True)
+
+    if submit:
+        errors = []
+        if not P["meta"]["project_name"].strip():
+            errors.append("Enter a project name.")
+        if files:
+            texts, names = [], []
+            for f in files:
+                try:
+                    texts.append(f"--- Document: {f.name} ---\n{read_uploaded(f)}")
+                    names.append(f.name)
+                except Exception as e:  # noqa: BLE001
+                    errors.append(f"Could not read {f.name}: {e}")
+            P["file_text"], P["file_names"] = "\n\n".join(texts), names
+        if not combined_input().strip():
+            errors.append("Provide input: upload a document, paste notes or dictate.")
+        if has_sections and not confirm:
+            errors.append("Tick the box to confirm replacing the existing sections.")
+        if errors:
+            for e in errors:
+                st.error(e)
+        else:
+            bar = st.progress(0.0, text="Sending your input to the AI…")
+            ok = True
+            for i, sec in enumerate(SECTIONS):
+                bar.progress(i / len(SECTIONS), text=f"Drafting {i + 1}/{len(SECTIONS)}: {sec['title']}…")
+                if not generate_section(sec["id"]):
+                    ok = False
+                    break
+            bar.progress(1.0, text="Done")
+            save_to_disk()
+            if ok:
+                flash("success", "All sections drafted. Review each one, edit as needed and click Save. "
+                                 "Export unlocks when every section is saved.")
+                st.session_state["_goto"] = PAGES[1]
+            st.rerun()
 
 
 # =====================================================================  2. SECTIONS
@@ -420,6 +513,13 @@ elif page.startswith("2"):
     st.title("2 · Sections")
     st.caption("Each section is generated from your input **and** the sections before it, so IDs "
                "(REQ → US → DM → TC) stay consistent. Review, edit, improve, save, then approve.")
+
+    n_saved = sum(1 for x in SECTIONS if section_status(x["id"])[0] in ("Saved", "Approved"))
+    if all_saved():
+        st.success("✅ All sections saved - Word and PDF export is unlocked.")
+        st.button("Go to Preview & Export →", on_click=go, args=(PAGES[3],), type="primary")
+    else:
+        st.progress(n_saved / len(SECTIONS), text=f"{n_saved}/{len(SECTIONS)} sections saved - export unlocks at {len(SECTIONS)}/{len(SECTIONS)}")
 
     g1, g2, g3 = st.columns([1.2, 1.4, 3])
     overwrite = g2.checkbox("Overwrite unapproved drafts", value=False)
@@ -572,12 +672,12 @@ else:
                      "Diagrams": sum(1 for d in P["diagrams"] if d["attach"] == s["id"] and d["include"])})
     st.dataframe(rows, hide_index=True, use_container_width=True)
 
-    unsaved = [s["title"] for s in SECTIONS if section_status(s["id"])[0] == "Draft - unsaved"]
-    if unsaved:
-        st.warning("Unsaved changes in: " + ", ".join(unsaved) + ". They will still be exported as drafts.")
 
-    include_drafts = st.toggle("Include sections that are not yet approved", value=True,
-                               help="Turn off to export only approved sections (final client version).")
+    include_drafts = True
+    ready = all_saved()
+    if not ready:
+        pending = [x["title"] for x in SECTIONS if section_status(x["id"])[0] not in ("Saved", "Approved")]
+        st.info("🔒 Export unlocks once every section is saved. Still to review and save: " + ", ".join(pending))
 
     def export_project():
         p = copy.deepcopy(P)
@@ -586,7 +686,7 @@ else:
                        for sid in P["sections"]}
         return p
 
-    has_content = any(P["sections"][s["id"]].strip() for s in SECTIONS)
+    has_content = ready
     c1, c2 = st.columns(2)
     name = slug(P["meta"]["project_name"]) or "ba_document"
     with c1:
